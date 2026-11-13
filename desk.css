@@ -1,0 +1,69 @@
+/* 우리반 바탕화면 앱판 — 시작 화면 · 연결 알림 · 시트 관리 (index 의 색 토큰만 쓴다) */
+.desk-start{position:fixed; inset:0; z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+  padding:max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background:radial-gradient(60vmax 60vmax at 12% 8%, var(--a1), transparent 60%), radial-gradient(60vmax 60vmax at 90% 20%, var(--a2), transparent 60%),
+    radial-gradient(60vmax 60vmax at 50% 100%, var(--a3), transparent 60%), var(--base); overflow:auto; overscroll-behavior:contain}
+.desk-start[hidden]{display:none}
+body.desk-starting{overflow:hidden}
+.ds-card{width:min(460px,100%); background:var(--glass); border:1px solid var(--edge); border-radius:var(--r); box-shadow:var(--sh); padding:34px 30px 28px;
+  -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px); display:flex; flex-direction:column; gap:12px; animation:dsIn .5s var(--ease) both}
+@keyframes dsIn{from{opacity:0; transform:translateY(12px)}}
+@media (prefers-reduced-motion:reduce){.ds-card{animation:none}}
+.ds-logo{width:52px; height:52px; border-radius:16px; background:var(--main); margin-bottom:4px; display:grid; place-items:center}
+.ds-logo::after{content:""; width:26px; height:26px; background:#fff;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3l1.9 5.2L19 10l-5.1 1.8L12 17l-1.9-5.2L5 10l5.1-1.8z'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3l1.9 5.2L19 10l-5.1 1.8L12 17l-1.9-5.2L5 10l5.1-1.8z'/%3E%3C/svg%3E") center/contain no-repeat}
+.ds-card h1{font-size:34px; line-height:1.15; color:var(--ink)}
+.ds-card h2{font-size:26px; line-height:1.2; color:var(--ink)}
+.ds-lead{color:var(--ink2); font-size:15.5px; line-height:1.6}
+.ds-points{list-style:none; display:flex; flex-direction:column; gap:10px; margin:6px 0 4px}
+.ds-points li{font-size:14px; color:var(--sub); line-height:1.5; padding-left:16px; position:relative}
+.ds-points li::before{content:""; position:absolute; left:0; top:.55em; width:7px; height:7px; border-radius:50%; background:var(--main)}
+.ds-points b{display:block; color:var(--ink); font-size:15px}
+.ds-btn{display:flex; align-items:center; justify-content:center; gap:10px; min-height:52px; border-radius:16px; background:var(--main); color:#fff; font-weight:700; font-size:16px;
+  touch-action:manipulation; transition:transform .15s var(--ease), filter .15s, background-color .15s}
+.ds-btn:hover{filter:brightness(1.06)} .ds-btn:active{transform:scale(.98)} .ds-btn:disabled{opacity:.6; cursor:default}
+.ds-btn.ghost{background:transparent; color:var(--ink2); border:1px solid var(--line)}
+.ds-btn.ghost:hover{background:rgba(255,255,255,.75); filter:none}
+.ds-btn.sm{min-height:42px; font-size:14px}
+.ds-btn .g{width:22px; height:22px; border-radius:50%; background:#fff; flex:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.5 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.4 13.7 17.7 9.5 24 9.5z'/%3E%3Cpath fill='%234285F4' d='M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z'/%3E%3Cpath fill='%23FBBC05' d='M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.3.8-4.7l-7.8-6C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.8-6z'/%3E%3Cpath fill='%2334A853' d='M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.6-4.2-13.5-9.9l-7.8 6C6.6 42.6 14.6 48 24 48z'/%3E%3C/svg%3E");
+  background-size:15px; background-position:center; background-repeat:no-repeat}
+.ds-small{font-size:12.5px; color:var(--sub); line-height:1.55}
+.ds-err{background:#fdeef0; color:#9b2c3a; border-radius:12px; padding:10px 12px; font-size:14px; line-height:1.5}
+.ds-foot{width:min(460px,100%); font-size:12px; color:var(--sub); line-height:1.6; text-align:center}
+.ds-foot a{color:var(--ink2)}
+.ds-files{display:flex; flex-direction:column; gap:8px; max-height:40vh; overflow:auto}
+.ds-file,.desk-tool{touch-action:manipulation}
+.ds-file{display:flex; justify-content:space-between; align-items:center; gap:10px; text-align:left; padding:14px 16px; border-radius:14px; background:#fff; border:1px solid var(--line); transition:border-color .15s}
+.ds-file:hover{border-color:var(--main)} .ds-file b{font-size:15.5px} .ds-file small{color:var(--sub); font-size:12.5px; flex:none}
+.ds-or{font-size:13px; color:var(--sub); text-align:center; margin-top:6px}
+.ds-lab{font-size:13px; font-weight:700; color:var(--ink2)}
+.ds-in{min-height:48px; border-radius:14px; border:1px solid var(--line); background:#fff; padding:0 14px; font-size:16px}
+.ds-in:focus{outline:3px solid color-mix(in srgb, var(--main) 40%, white); border-color:var(--main)}
+.ds-bar{height:6px; border-radius:6px; background:var(--line); overflow:hidden}
+.ds-bar i{display:block; height:100%; width:40%; border-radius:6px; background:var(--main); animation:dsBar 1.3s var(--ease) infinite}
+@media (prefers-reduced-motion:reduce){.ds-bar i{animation:none; width:100%; opacity:.5}}
+@keyframes dsBar{from{transform:translateX(-100%)} to{transform:translateX(260%)}}
+
+/* 연결 알림 (아래 가운데, 화면을 막지 않는다) */
+.desk-link{position:fixed; left:50%; bottom:max(14px, env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:150; max-width:calc(100% - 32px); display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:center;
+  padding:8px 10px 8px 16px; border-radius:999px; background:rgba(29,29,31,.86); color:#fff; font-size:13.5px; box-shadow:0 10px 30px -12px rgba(0,0,0,.4)}
+.desk-link[hidden]{display:none}
+.desk-link button{background:#fff; color:var(--ink); border-radius:999px; padding:6px 12px; font-weight:700; font-size:13px}
+.desk-link.demo{background:var(--main)}
+
+/* 선생님 서랍 > 시트 관리 — 묶음마다 은은한 파스텔 + 살짝 떠 있는 카드 */
+.desk-tools{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; --tb:#f1edff; --tbd:#ddd5fb; --tc:#5b49c2}
+.desk-tools.g1{--tb:#e9f4ff; --tbd:#cde2fa; --tc:#215f9f}
+.desk-tools.g2{--tb:#fff0f2; --tbd:#f8cfd7; --tc:#a8323f}
+.desk-tool{display:flex; flex-direction:column; align-items:flex-start; gap:4px; text-align:left; padding:13px 15px 12px; border-radius:16px; background:linear-gradient(180deg,#fff 0%,var(--tb) 100%); border:1px solid var(--tbd);
+  box-shadow:inset 0 1px 0 #fff, 0 1px 2px rgba(24,18,52,.05), 0 8px 18px -12px color-mix(in srgb, var(--tc) 60%, transparent); transition:transform .15s var(--ease), box-shadow .15s, border-color .15s}
+.desk-tool:hover{transform:translateY(-2px); border-color:color-mix(in srgb, var(--tc) 45%, white); box-shadow:inset 0 1px 0 #fff, 0 2px 4px rgba(24,18,52,.05), 0 14px 24px -14px color-mix(in srgb, var(--tc) 70%, transparent)}
+.desk-tool:active{transform:translateY(0) scale(.99)}
+.desk-tool b{font-size:14.5px; color:var(--tc)} .desk-tool small{font-size:12.5px; color:var(--sub); line-height:1.45}
+.desk-tool.warn b{color:#9b2c3a} .desk-tool.sure{background:#fde3e8; border-color:#e5566a}
+.desk-tool.run{opacity:.6; cursor:progress}
+body.night .desk-tool{background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.14); box-shadow:none}
+body.night .desk-tool b{color:#fff} body.night .desk-tool small{color:rgba(255,255,255,.62)}
+#fsBtn.on{background:var(--main); color:#fff}
