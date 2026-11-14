@@ -312,6 +312,26 @@
   html.twin .dbody{padding:18px max(20px,calc((100vw - 1120px)/2)) 40px}
   html.twin .dhead .x{font-size:15px; font-weight:800; padding:6px 12px; border-radius:99px; background:#efeaff; color:#5a4aa8}
   html.twin .dhead .x::after{content:" 창 닫기"}
+  /* 알림장 */
+  .c-notice{--hue:#2e77c8; --hue2:#5aa3e6; cursor:pointer}
+  .nt-list{margin:2px 0 0; padding:0 0 0 1.5em; display:grid; gap:4px; overflow:hidden; font-size:clamp(15px,12cqh,26px); line-height:1.35; color:var(--ink); font-weight:700; min-height:0}
+  .nt-list li::marker{color:#2e77c8; font-weight:800}
+  .nt-list .mempty{list-style:none; margin-left:-1.5em; color:var(--sub); font-weight:600; font-size:14px}
+  .ntbig{position:fixed; inset:0; z-index:86; display:none; place-items:center; background:radial-gradient(circle at 50% 30%, #fff, #eaf3fd 60%, #dbe9fb); overflow:auto}
+  .ntbig.on{display:grid}
+  #ntClose{position:fixed; top:22px; right:26px; z-index:2; font-size:18px; padding:10px 22px}
+  .ntb-in{width:min(1100px,92vw); padding:60px 0 40px}
+  .ntb-in h2{font-size:clamp(30px,4.6vw,56px); color:#1d5a99; margin-bottom:22px; text-align:center}
+  .ntb-in ol{padding-left:1.6em; display:grid; gap:.45em; font-size:clamp(26px,3.6vw,48px); line-height:1.35; color:#1f2340}
+  .ntb-in li::marker{color:#2e77c8}
+  body.night .ntbig{background:radial-gradient(circle at 50% 30%, #2b3170, #191d4a)} body.night .ntb-in h2{color:#9fc7ff} body.night .ntb-in ol{color:#fff}
+  .nt-days{display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:8px}
+  .nt-days input[type=date]{width:auto}
+  #ntText{width:100%; min-height:200px; font-size:16px; line-height:1.7; resize:vertical; font-family:inherit}
+  .nt-old{display:grid; gap:6px} .nt-old button{display:flex; gap:12px; text-align:left; align-items:flex-start; padding:9px 11px; border-radius:12px; background:#f7f6fb; font-size:13.5px; line-height:1.5}
+  .nt-old button:hover{background:#eaf3fd} .nt-old b{white-space:nowrap; color:#1d5a99; min-width:84px}
+  .nt-old button.sel{outline:2px solid #2e77c8}
+  #ntDel.sure{background:#e5566a; color:#fff; border-color:#e5566a}
   /* 수업계획 */
   .lp-nav{margin-left:auto; display:flex; gap:6px; align-items:center; flex-wrap:wrap; font-size:13px} .lp-nav b{padding:0 4px}
   .lp-wrap{overflow-x:auto}
@@ -894,6 +914,10 @@
     <div class="add tonly flex"><input class="field" id="todoText" placeholder="할 일 적고 Enter" maxlength="60"></div>
     <ul class="list" id="todos"></ul><div class="tools"></div></section>
 
+  <section class="card c-notice" data-id="notice" id="noticeCard" role="button" tabindex="0" aria-label="알림장 크게 보기" title="눌러서 크게 보기">
+    <header class="ch"><span class="ic" data-i="note"></span><h2>알림장</h2><span class="r"><span class="badge" id="noticeDay"></span></span></header>
+    <ol class="nt-list" id="noticeList"></ol><div class="tools"></div></section>
+
   <section class="card c-memo" data-id="memo" id="memoCard">
     <header class="ch"><span class="ic" data-i="chat"></span><h2>선생님께 남겨요</h2><span class="r"><span class="badge" id="memoNew" hidden></span></span></header>
     <div class="memo-body">
@@ -961,6 +985,8 @@
     학생 이름 · 계정 · 출결 같은 개인정보는 선생님 구글 시트에만 저장돼요. <b>시트는 학생 · 학부모 · 다른 사람에게 절대 공유하지 마세요.</b> 개인정보 관리 소홀로 생기는 문제의 책임은 사용하는 분께 있어요.<br><a href="https://kimman.kr/desk/privacy" target="_blank" rel="noopener"><b>개인정보처리방침</b></a> · <a href="https://kimman.kr/desk/terms" target="_blank" rel="noopener">이용약관</a> · 문의 <a href="mailto:rlaalscjswo1@gmail.com">rlaalscjswo1@gmail.com</a></div>
 </aside>
 
+<div class="ntbig" id="noticeBig" role="dialog" aria-label="알림장 크게 보기"><button class="btn ghost bx" id="ntClose">닫기</button>
+  <div class="ntb-in"><h2 class="jua" id="ntbTitle">알림장</h2><ol class="jua" id="ntbList"></ol></div></div>
 <div class="big" id="bigClock" role="dialog" aria-label="큰 시계"><button class="btn ghost bx" id="bcClose">닫기</button>
   <div class="bclock"><svg viewBox="0 0 200 200" id="analogB" aria-hidden="true"></svg>
     <div class="bcd"><span class="ap" id="bAp"></span><div class="bct jua num"><span id="bH">--</span><span class="colon">:</span><span id="bM">--</span></div><div class="bcdate" id="bDate"></div><div class="bcnow" id="bNow" hidden><i></i><span></span></div></div></div></div>

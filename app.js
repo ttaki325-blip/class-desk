@@ -285,9 +285,9 @@
 
   // ── 카드 배치 (선생님이 화면 꾸미기에서 바꾸고, 시트 '설정 > 배치'에 저장) ──
   // 기본은 9장만 보이게(복잡하지 않게). 발표 뽑기는 숨겨 두고 선생님이 꺼내 쓴다
-  var DEF = { v: 2, order: ["clock", "tt", "weather", "thermo", "timer", "meal", "cal", "todo", "memo", "pick"],
-    size: { clock: [4, 1], tt: [5, 1], weather: [3, 1], thermo: [3, 2], timer: [3, 1], meal: [3, 1], cal: [3, 1], todo: [3, 1], memo: [3, 1], pick: [3, 1] }, hidden: ["pick"] };
-  var NAMES = { clock: "시계", tt: "시간표", weather: "날씨 · 미세먼지", thermo: "학급 온도계", timer: "타이머", cal: "달력", pick: "발표 뽑기", todo: "오늘 할 일", memo: "선생님께 남겨요", meal: "오늘 급식" };
+  var DEF = { v: 2, order: ["clock", "tt", "weather", "thermo", "timer", "meal", "cal", "todo", "notice", "memo", "pick"],
+    size: { clock: [4, 1], tt: [5, 1], weather: [3, 1], thermo: [3, 2], timer: [3, 1], meal: [3, 1], cal: [3, 1], todo: [3, 1], notice: [4, 1], memo: [3, 1], pick: [3, 1] }, hidden: ["pick"] };
+  var NAMES = { clock: "시계", tt: "시간표", weather: "날씨 · 미세먼지", thermo: "학급 온도계", timer: "타이머", cal: "달력", pick: "발표 뽑기", todo: "오늘 할 일", notice: "알림장", memo: "선생님께 남겨요", meal: "오늘 급식" };
   var LAY = JSON.parse(JSON.stringify(DEF));
   function readLayout() {
     try { var l = JSON.parse(D.layout || "null"); if (l && l.order && l.v >= 2) { l.hidden = l.hidden || []; DEF.order.forEach(function (id) { if (l.order.indexOf(id) < 0) { l.order.push(id); if (DEF.hidden.indexOf(id) >= 0) l.hidden.push(id); } }); l.size = l.size || {}; DEF.order.forEach(function (id) { if (!l.size[id]) l.size[id] = DEF.size[id]; }); return l; } } catch (e) {}
@@ -367,7 +367,7 @@
     if (!EDIT) LAY = readLayout();
     document.body.classList.toggle("night", s["화면 테마"] === "별밤 네온");
     $("toolBtn").hidden = isOff("놀이 · 도구"); $("readBtn").hidden = isOff("독서 · 명상");
-    drawBday(); drawDday(); drawTT(); nowPeriod(); drawThermo(); drawTodos(); drawMemos(); drawPanel(); drawPick(); drawSound(); drawCal(); drawMonthNote();
+    drawBday(); drawDday(); drawNotice(); drawTT(); nowPeriod(); drawThermo(); drawTodos(); drawMemos(); drawPanel(); drawPick(); drawSound(); drawCal(); drawMonthNote();
     applyLayout(); tickClock(); if (WX) showWeather();
     if (MEAL.at !== D.today) mealLoad(true); else drawMeal();
     if (TD && $("drawer").classList.contains("on")) drawDrawer();
@@ -774,7 +774,7 @@
   document.addEventListener("pointerdown", function () { if (TPW) poke(); });
   if (TPW) teacherOn();
 
-  var DTABS = [["today", "오늘 한눈에", "eye"], ["note", "선생님 노트", "note"], ["lesson", "수업계획", "book"], ["tt", "시간표", "cal"], ["ev", "일정", "spark"], ["att", "출결", "check"], ["month", "월별 기록", "print"], ["layout", "화면 꾸미기", "grid"], ["feat", "기능 켜고 끄기", "eye"], ["set", "설정", "gear"], ["sheet", "시트 관리", "sheet"], ["safe", "보안 · 심의", "shield"]];
+  var DTABS = [["today", "오늘 한눈에", "eye"], ["note", "선생님 노트", "note"], ["lesson", "수업계획", "book"], ["notice", "알림장", "list"], ["tt", "시간표", "cal"], ["ev", "일정", "spark"], ["att", "출결", "check"], ["month", "월별 기록", "print"], ["layout", "화면 꾸미기", "grid"], ["feat", "기능 켜고 끄기", "eye"], ["set", "설정", "gear"], ["sheet", "시트 관리", "sheet"], ["safe", "보안 · 심의", "shield"]];
   function openDrawer(tab) {
     DTAB = tab || DTAB; $("drawer").classList.add("on"); $("dback").classList.add("on"); var vv = (D && D.version) || ""; $("verTxt").textContent = (vv.match(/v[\d.]+$/) || [vv])[0]; $("verTxt").title = vv;
     $("dbody").innerHTML = '<p class="muted">시트에서 가져오는 중...</p>';
@@ -943,6 +943,74 @@
     var w = window.open("", "_blank"); if (!w) { toast("새 창이 막혔어요. 팝업을 허용해 주세요"); return; }
     w.document.write(html); w.document.close(); setTimeout(function () { w.focus(); w.print(); }, 300);
   }
+
+  // ── 알림장: 칠판 카드(오늘 것) + 크게 보기 + 서랍 '알림장' 탭에서 날짜별로 쓰기 ──
+  function ntLines(t) { return String(t || "").split("\n").map(function (x) { return x.replace(/^\s*(\d+[.)]|[①-⑳]|[-•·])\s*/, "").trim(); }).filter(String); }
+  function drawNotice() {
+    if (!$("noticeList")) return;
+    var n = D.notice, li = n ? ntLines(n.text) : [];
+    $("noticeDay").textContent = mdText(D.today).replace(/^\d+월 /, "");
+    $("noticeList").innerHTML = li.length ? li.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") : '<li class="mempty">오늘 알림장이 아직 없어요</li>';
+    if ($("noticeBig").classList.contains("on")) noticeBigDraw();
+  }
+  function noticeBigDraw() {
+    var li = D.notice ? ntLines(D.notice.text) : [];
+    $("ntbTitle").textContent = mdText(D.today) + " 알림장";
+    $("ntbList").innerHTML = li.length ? li.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") : '<li style="list-style:none">오늘 알림장이 아직 없어요</li>';
+  }
+  $("noticeCard").addEventListener("click", function (e) { if (EDIT || e.target.closest(".tools") || !D) return; noticeBigDraw(); $("noticeBig").classList.add("on"); });
+  $("noticeCard").addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && !EDIT) { e.preventDefault(); $("noticeCard").click(); } });
+  $("ntClose").onclick = function () { $("noticeBig").classList.remove("on"); };
+  $("noticeBig").addEventListener("click", function (e) { if (e.target === $("noticeBig")) $("noticeBig").classList.remove("on"); });
+  addEventListener("keydown", function (e) { if (e.key === "Escape") $("noticeBig").classList.remove("on"); });
+
+  var NT = { d: "", months: {}, loading: {}, drafts: {} };
+  function ntNextDay(ymd) { var x = ymdAdd(ymd, 1), w = new Date(x + "T12:00:00").getDay(); return w === 6 ? ymdAdd(x, 2) : w === 0 ? ymdAdd(x, 1) : x; }
+  function ntLoad(m, force) {
+    if (NT.loading[m] || (NT.months[m] && !force)) return; NT.loading[m] = 1;
+    google.script.run.withSuccessHandler(function (r) { delete NT.loading[m]; NT.months[m] = r.list || []; if (DTAB === "notice") drawDrawer(); })
+      .withFailureHandler(function (e) { delete NT.loading[m]; fail(e); }).noticeList(CODE, TPW, m);
+  }
+  function ntFind(ymd) { return (NT.months[ymd.slice(0, 7)] || []).filter(function (x) { return x.d === ymd; })[0] || null; }
+  function noticePane() {
+    if (!NT.d) NT.d = D.today;
+    var m = NT.d.slice(0, 7);
+    if (!NT.months[m]) { ntLoad(m); return '<p class="muted">알림장을 가져오는 중...</p>'; }
+    var cur = ntFind(NT.d), dr = NT.drafts[NT.d], val = dr != null ? dr : cur ? cur.text : "", nx = ntNextDay(D.today);
+    var h = '<div class="dsec"><h4>' + ico("list") + mdText(NT.d) + ' 알림장' + (NT.d === D.today ? ' <span class="muted" style="font-weight:600">· 오늘 칠판에 보여요</span>' : "") +
+      (cur && cur.at ? '<span class="muted" style="margin-left:auto; font-weight:600; font-size:12px">저장 ' + esc(String(cur.at).slice(5)) + "</span>" : "") + "</h4>" +
+      '<div class="nt-days"><button class="chip' + (NT.d === D.today ? " on" : "") + '" data-ntd="' + D.today + '">오늘</button><button class="chip' + (NT.d === nx ? " on" : "") + '" data-ntd="' + nx + '">다음 날 (' + mdText(nx).replace(/^\d+월 /, "") + ')</button>' +
+      '<input class="field" type="date" id="ntDate" value="' + NT.d + '"></div>' +
+      '<textarea class="field" id="ntText" maxlength="1500" placeholder="한 줄에 하나씩 적어요. 번호는 저절로 붙어요.\n예)\n수학 익힘책 54~55쪽\n내일 체육복 입고 오기\n가정통신문(현장체험학습) 회신">' + esc(val) + "</textarea>" +
+      '<div class="frow" style="margin-top:8px"><button class="btn" id="ntSave">저장</button>' + (dr != null ? '<button class="btn ghost" id="ntUndo">고친 것 버리기</button>' : "") +
+      (NT.d === D.today ? '<button class="btn ghost" id="ntBig">칠판에 크게 띄우기</button>' : "") + (cur ? '<button class="btn ghost" id="ntDel" style="margin-left:auto">이 날 알림장 지우기</button>' : "") + "</div></div>";
+    var list = NT.months[m];
+    h += '<div class="dsec"><h4>' + ico("cal") + Number(m.slice(5)) + "월 알림장" + '<span class="lp-nav"><button class="btn ghost sm" data-ntm="-1">◀ 지난달</button><button class="btn ghost sm" data-ntm="1">다음 달 ▶</button></span></h4>' +
+      (list.length ? '<div class="nt-old">' + list.map(function (x) {
+        return '<button data-ntd="' + x.d + '"' + (x.d === NT.d ? ' class="sel"' : "") + "><b>" + esc(mdText(x.d).replace(/^\d+월 /, "")) + "</b><span>" + ntLines(x.text).map(function (l, i) { return (i + 1) + ". " + esc(l); }).join("<br>") + "</span></button>";
+      }).join("") + "</div>" : '<p class="muted">이 달에 적은 알림장이 없어요</p>') + "</div>";
+    return h;
+  }
+  $("dbody").addEventListener("input", function (e) { if (e.target.id === "ntText") NT.drafts[NT.d] = e.target.value; });
+  $("dbody").addEventListener("change", function (e) { if (e.target.id === "ntDate" && /^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) { NT.d = e.target.value; drawDrawer(); } });
+  $("dbody").addEventListener("click", function (e) {
+    var t = e.target.closest("button"); if (!t || DTAB !== "notice") return;
+    if (t.dataset.ntd) { NT.d = t.dataset.ntd; drawDrawer(); return; }
+    if (t.dataset.ntm) { var a = new Date(NT.d.slice(0, 7) + "-15T12:00:00"); a.setMonth(a.getMonth() + Number(t.dataset.ntm)); NT.d = a.getFullYear() + "-" + pad(a.getMonth() + 1) + "-01"; drawDrawer(); return; }
+    if (t.id === "ntUndo") { delete NT.drafts[NT.d]; drawDrawer(); return; }
+    if (t.id === "ntBig") { try { if (TOP && !TOP.closed) { TOP.noticeBigDraw(); TOP.$("noticeBig").classList.add("on"); toast("칠판에 알림장을 크게 띄웠어요"); return; } } catch (x) {} noticeBigDraw(); $("noticeBig").classList.add("on"); return; }
+    if (t.id === "ntSave" || t.id === "ntDel") {
+      var d = NT.d, m = d.slice(0, 7), text = t.id === "ntDel" ? "" : ntLines($("ntText").value).join("\n");
+      if (t.id === "ntDel" && !t.classList.contains("sure")) { t.classList.add("sure"); t.textContent = "한 번 더 누르면 지워요"; setTimeout(function () { if (t.isConnected) { t.classList.remove("sure"); t.textContent = "이 날 알림장 지우기"; } }, 4000); return; }
+      if (t.id === "ntSave" && !text && !ntFind(d)) { toast("알림장 내용을 먼저 적어 주세요"); $("ntText").focus(); return; }
+      write("noticeSave", [TPW, d, text], { busy: text ? "알림장 저장 중" : "알림장 지우는 중", msg: text ? mdText(d) + " 알림장을 저장했어요" + (d === D.today ? " · 칠판에 보여요" : "") : "알림장을 지웠어요",
+        mut: function (dd) {
+          var l = (NT.months[m] || []).filter(function (x) { return x.d !== d; }); if (text) l.push({ d: d, text: text, at: nowStamp() }); l.sort(function (a, b) { return a.d < b.d ? 1 : -1; }); NT.months[m] = l;
+          if (d === dd.today) dd.notice = text ? { d: d, text: text } : null; delete NT.drafts[d];
+        } });
+      drawDrawer(); return;
+    }
+  });
   function twinStart() {
     document.body.classList.add("twin");
     document.title = "선생님 서랍 · " + ((D && D.settings["학급 닉네임"]) || "우리반 바탕화면");
@@ -968,6 +1036,7 @@
     else if (DTAB === "feat") h = featPane();
     else if (DTAB === "month") h = monthPane();
     else if (DTAB === "lesson") h = lessonPane();
+    else if (DTAB === "notice") h = noticePane();
     $("dbody").innerHTML = h;
     if (DTAB === "tt") ttBind();
     if (DTAB === "month") monthBind();
@@ -1483,7 +1552,7 @@
   ];
 
   // ── 서랍 탭 색 (연한 바탕 · 진한 글자) ──
-  var DTC = { today: ["#e3f1fd", "#1d6fb8"], lesson: ["#fde9e1", "#b4502a"], note: ["#fdf3d8", "#956506"], safe: ["#fde7ef", "#b8336a"], tt: ["#e2f6e8", "#1f7a4a"], ev: ["#efe9fd", "#6d4fd0"],
+  var DTC = { today: ["#e3f1fd", "#1d6fb8"], lesson: ["#fde9e1", "#b4502a"], notice: ["#e3effc", "#1d5a99"], note: ["#fdf3d8", "#956506"], safe: ["#fde7ef", "#b8336a"], tt: ["#e2f6e8", "#1f7a4a"], ev: ["#efe9fd", "#6d4fd0"],
     att: ["#fde4e4", "#b8323f"], month: ["#ffeedd", "#c0601a"], layout: ["#e6e9fd", "#4450c9"], feat: ["#ddf5f2", "#0f7a6e"], set: ["#eef1f5", "#3d4a5c"], sheet: ["#ddf4e6", "#178a55"] };
 
   // ── 잠금: 아이들이 화면을 누르지 못하게 (시계 · 타이머 · 날씨는 그대로 돈다). 풀 때는 선생님 비밀번호 ──

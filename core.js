@@ -18,7 +18,7 @@ window.CORE = (function () {
  *   시트 공유 · 웹 앱 공개 범위를 잘 관리해 주세요. 개인정보 관리 소홀로 생기는 문제의 책임은 사용하는 분께 있습니다.
  */
 
-const VERSION = '우리반 바탕화면 앱판 v3.1 수정판';
+const VERSION = '우리반 바탕화면 앱판 수정판 v3.1';
 // 제작자 요청함 주소 (제작자용_요청함.gs 를 웹 앱으로 배포한 주소). 비워 두면 '제작자에게' 보내기가 꺼진다
 const FEEDBACK_URL = 'https://script.google.com/macros/s/AKfycbz6lqEJfLAdC_6FlpnmC4FN3Y4rlPzu7ljjNHVjyOT7CCuSG5PL4rOExMiMqrm3GHHv/exec';
 
@@ -41,6 +41,7 @@ const TABS = {
   '기록':      ['시각', '날짜', '종류', '번호', '이름', '내용'],
   '감정':      ['시각', '날짜', '번호', '이름', '신호등', '기분', '한마디'],
   '온도계':    ['시각', '날짜', '변화', '이유', '누적'],
+  '알림장':    ['날짜', '내용', '고친 시각'],
   '수업계획':   ['날짜', '교시', '과목', '단원 · 차시', '학습 목표', '수업 계획', '활동 계획', '준비물', '메모', '고친 시각'],
 };
 // 출석부처럼 학생 × 날짜로 그려지는 체크표 (앱이 기록을 보고 저절로 다시 그린다)
@@ -50,12 +51,12 @@ const CHECKS = [
 ];
 // 탭이 놓이는 순서와 색 묶음
 const ORDER = ['읽어 주세요', '설정', '월별 보기', '출결', '우유 체크', '다했어요 체크', '1인1역 체크', '발표 체크', '마음 체크', '학생별', '날짜별',
-  '학생', '계정', '기초시간표', '시간표변경', '일정', '명언', '할일', '선생님노트', '수업계획', '쪽지', '자리배치', '모둠', '기록', '감정', '온도계'];
+  '학생', '계정', '기초시간표', '시간표변경', '일정', '명언', '할일', '알림장', '선생님노트', '수업계획', '쪽지', '자리배치', '모둠', '기록', '감정', '온도계'];
 const GROUP = {
   '읽어 주세요': '#b8323f', '설정': '#7566c0', '월별 보기': '#d9822b', '우유 체크': '#35915a', '다했어요 체크': '#35915a', '1인1역 체크': '#35915a', '발표 체크': '#35915a', '마음 체크': '#35915a',
   '학생별': '#b3831f', '날짜별': '#b3831f', '출결': '#c9636d',
   '학생': '#2e77c8', '계정': '#2e77c8', '기초시간표': '#2e77c8', '시간표변경': '#2e77c8', '일정': '#2e77c8', '명언': '#2e77c8', '할일': '#2e77c8',
-  '선생님노트': '#c9636d', '수업계획': '#c9636d', '쪽지': '#c9636d', '자리배치': '#2b968f', '모둠': '#2b968f',
+  '선생님노트': '#c9636d', '수업계획': '#c9636d', '알림장': '#2e77c8', '쪽지': '#c9636d', '자리배치': '#2b968f', '모둠': '#2b968f',
   '기록': '#9ca3af', '감정': '#9ca3af', '온도계': '#9ca3af',
 };
 const RAW = ['기록', '감정', '온도계'];   // 앱이 쓰는 원본 기록 — 평소엔 숨겨 두고 메뉴로 보이기
@@ -66,12 +67,12 @@ const WIDTHS = {
   '기초시간표': [70, 120, 90, 90, 90, 90, 90], '시간표변경': [110, 80, 80, 80, 80, 80, 80, 80], '일정': [110, 220, 80],
   '명언': [460, 140], '할일': [60, 110, 320, 70], '기록': [140, 110, 80, 60, 90, 220], '온도계': [140, 110, 60, 200, 60],
   '쪽지': [60, 140, 110, 360], '감정': [140, 110, 60, 90, 70, 90, 260],
-  '선생님노트': [140, 110, 60, 90, 80, 420], '수업계획': [110, 50, 70, 160, 220, 360, 360, 160, 200, 140], '모둠': [90, 60, 100, 110], '출결': [110, 60, 90, 70, 80, 60, 260, 140],
+  '선생님노트': [140, 110, 60, 90, 80, 420], '알림장': [110, 520, 140], '수업계획': [110, 50, 70, 160, 220, 360, 360, 160, 200, 140], '모둠': [90, 60, 100, 110], '출결': [110, 60, 90, 70, 80, 60, 260, 140],
   '학생별': [60, 90, 70, 80, 80, 70, 80, 100, 90, 90], '날짜별': [110, 80, 100, 100, 80, 60, 60, 60, 90],
 };
 const ALIGN = {   // 칸마다 정렬 (polish_)
   '설정': 'lll', '학생': 'cclcc', '계정': 'cc', '기초시간표': 'ccccccc', '시간표변경': 'cccccccc', '일정': 'clc', '명언': 'll',
-  '할일': 'cclc', '쪽지': 'cccl', '선생님노트': 'cccccl', '수업계획': 'ccclllllll', '모둠': 'cccc', '출결': 'cccccclc',
+  '할일': 'cclc', '쪽지': 'cccl', '선생님노트': 'cccccl', '수업계획': 'ccclllllll', '알림장': 'clc', '모둠': 'cccc', '출결': 'cccccclc',
   '학생별': 'clcccccccc', '날짜별': 'ccccccccc', '기록': 'cccccl', '감정': 'ccccccl', '온도계': 'ccclc',
 };
 const SETTABLE = ['학급 닉네임', '학생 수', '이름 보이기', '지금 활동', '타이머 소리', '온도계 목표', '칭찬 이유', '독서 · 명상 시간', '과목',
@@ -967,6 +968,7 @@ function getAll(code) {
     thermo: thermo, tt: timetable_(today), subjects: list_('과목', '국어,도덕,수학,사회,과학,음악,미술,실과,체육,영어,창체'),
     praise: list_('칭찬 이유', '바른 인사,협동,정리정돈,발표,배려,집중'),
     quote: quote ? { text: quote['글귀'], who: quote['누가'] } : null,
+    notice: noticeOf_(today),
     todos: rows_('할일').filter(function (r) { return r['할 일'] && (r['날짜'] === today || r['완료'] !== '예'); }),
     memos: tail_('쪽지', 6).reverse(),
     events: rows_('일정').filter(function (r) { return r['날짜'] && r['일정']; }).map(function (r) { return { d: r['날짜'], t: r['일정'], k: r['종류'] }; }),
@@ -1538,6 +1540,37 @@ function today_() { return Utilities.formatDate(new Date(), Session.getScriptTim
 function now_() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm'); }
 function addDays_(ymd, n) { const d = new Date(ymd + 'T12:00:00'); d.setDate(d.getDate() + n); return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
 
+// ── 알림장 (날짜마다 한 줄. 칠판 카드에는 오늘 것만) ─────────────────────
+function noticeSheet_() {
+  let sh = sheet_('알림장');
+  if (!sh) { sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet('알림장'); sh.appendRow(TABS['알림장']); try { decorate_(sh, '알림장'); } catch (e) {} }
+  return sh;
+}
+function noticeRows_() { if (!sheet_('알림장')) return []; return rows_('알림장'); }
+function noticeOf_(ymd) { const r = noticeRows_().filter(function (x) { return x['날짜'] === ymd && x['내용']; })[0]; return r ? { d: r['날짜'], text: r['내용'] } : null; }
+// 한 달 치 (yyyy-MM) — 서랍에서 지난 알림장 보기
+function noticeList(code, pw, month) {
+  guard_(code); tpw_(pw);
+  month = /^\d{4}-\d{2}$/.test(String(month)) ? String(month) : today_().slice(0, 7);
+  const list = noticeRows_().filter(function (r) { return String(r['날짜']).slice(0, 7) === month && r['내용']; })
+    .map(function (r) { return { d: r['날짜'], text: r['내용'], at: r['고친 시각'] || '' }; });
+  list.sort(function (a, b) { return a.d < b.d ? 1 : -1; });
+  return { month: month, list: list };
+}
+// 저장 (내용을 비우면 그날 알림장을 지운다)
+function noticeSave(code, pw, ymd, text) {
+  guard_(code); tpw_(pw);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) throw new Error('날짜를 골라 주세요.');
+  text = String(text || '').replace(/\r/g, '').split('\n').map(function (x) { return x.trim(); }).filter(String).join('\n').slice(0, 1500);
+  return locked_(function () {
+    const sh = noticeSheet_(), hit = rows_('알림장').filter(function (r) { return r['날짜'] === ymd; })[0];
+    if (!text) { if (hit) sh.deleteRow(hit._row); return { ok: true, del: true }; }
+    const row = [ymd, text, now_()];
+    if (hit) sh.getRange(hit._row, 1, 1, 3).setValues([row]); else sh.appendRow(row);
+    return { ok: true, at: row[2] };
+  });
+}
+
 // ── 수업계획 (선생님 서랍에서만. 날짜 + 교시마다 한 줄) ─────────────────────
 const LESSON_KEYS = ['과목', '단원 · 차시', '학습 목표', '수업 계획', '활동 계획', '준비물', '메모'];
 function lessonSheet_() {
@@ -1726,5 +1759,5 @@ async function searchSchool(code, pw, name, office) {
   return parseSchools_(await (await fetch(schoolUrl_(name, office))).json());
 }
 
-return { lessonWeek: lessonWeek, lessonFind: lessonFind, lessonSave: lessonSave, lessonDel: lessonDel, addDays_: addDays_, addEvent: addEvent, addMemo: addMemo, addMissing_: addMissing_, addNote: addNote, addTodo: addTodo, applySettings: applySettings, attendGet: attendGet, attendSave: attendSave, attendSheet_: attendSheet_, changePw: changePw, charts_: charts_, checkNo_: checkNo_, checkTeacher: checkTeacher, clearRecords: clearRecords, colA1_: colA1_, decorate_: decorate_, delMemo: delMemo, delTodo: delTodo, dish_: dish_, doGet: doGet, drawChecks_: drawChecks_, dv_: dv_, feel: feel, findRow_: findRow_, geocode_: geocode_, getAccount: getAccount, getAll: getAll, getMeal: getMeal, getWeather: getWeather, guard2_: guard2_, guard_: guard_, head_: head_, list_: list_, locked_: locked_, mailPw: mailPw, mainColor_: mainColor_, maskMail_: maskMail_, mealSchool_: mealSchool_, mealUrl_: mealUrl_, migrate_: migrate_, mmdd_: mmdd_, mondayOf_: mondayOf_, monthData: monthData, monthDays_: monthDays_, monthReport: monthReport, monthView_: monthView_, nextNo_: nextNo_, now_: now_, onEdit: onEdit, onOpen: onOpen, orderTabs_: orderTabs_, parseMeals_: parseMeals_, parseSchools_: parseSchools_, polish_: polish_, present: present, pwMailHtml_: pwMailHtml_, pwMailText_: pwMailText_, readmeAgain: readmeAgain, readmeOld_: readmeOld_, readme_: readme_, refreshAll: refreshAll, removeSamples: removeSamples, removeSamples_: removeSamples_, resetAll: resetAll, restyle: restyle, rows_: rows_, safe_: safe_, same_: same_, samples_: samples_, saveGroups: saveGroups, saveLayout: saveLayout, saveLocation: saveLocation, saveSchool: saveSchool, saveSeats: saveSeats, saveSetting: saveSetting, saveTimetable: saveTimetable, schoolUrl_: schoolUrl_, searchSchool: searchSchool, seedDemo_: seedDemo_, sendFeedback: sendFeedback, services_: services_, setSetting_: setSetting_, settings_: settings_, setup: setup, setup_: setup_, shareInfo: shareInfo, sheetTool: sheetTool, sheet_: sheet_, showUrls: showUrls, sortEvents: sortEvents, sortNotes: sortNotes, sortRange_: sortRange_, sortStudents: sortStudents, studentCount_: studentCount_, studentMap_: studentMap_, styleTab_: styleTab_, sync: sync, syncNotes_: syncNotes_, syncTabs_: syncTabs_, tail_: tail_, tally_: tally_, tap: tap, teacher: teacher, text_: text_, thermo: thermo, thermoReset: thermoReset, tidyTable_: tidyTable_, timetable_: timetable_, tint_: tint_, today_: today_, toggleRaw: toggleRaw, toggleTodo: toggleTodo, tpw_: tpw_, undoPresent: undoPresent, updateSummary: updateSummary, weekday_: weekday_, writeTable_: writeTable_ };
+return { noticeList: noticeList, noticeSave: noticeSave, lessonWeek: lessonWeek, lessonFind: lessonFind, lessonSave: lessonSave, lessonDel: lessonDel, addDays_: addDays_, addEvent: addEvent, addMemo: addMemo, addMissing_: addMissing_, addNote: addNote, addTodo: addTodo, applySettings: applySettings, attendGet: attendGet, attendSave: attendSave, attendSheet_: attendSheet_, changePw: changePw, charts_: charts_, checkNo_: checkNo_, checkTeacher: checkTeacher, clearRecords: clearRecords, colA1_: colA1_, decorate_: decorate_, delMemo: delMemo, delTodo: delTodo, dish_: dish_, doGet: doGet, drawChecks_: drawChecks_, dv_: dv_, feel: feel, findRow_: findRow_, geocode_: geocode_, getAccount: getAccount, getAll: getAll, getMeal: getMeal, getWeather: getWeather, guard2_: guard2_, guard_: guard_, head_: head_, list_: list_, locked_: locked_, mailPw: mailPw, mainColor_: mainColor_, maskMail_: maskMail_, mealSchool_: mealSchool_, mealUrl_: mealUrl_, migrate_: migrate_, mmdd_: mmdd_, mondayOf_: mondayOf_, monthData: monthData, monthDays_: monthDays_, monthReport: monthReport, monthView_: monthView_, nextNo_: nextNo_, now_: now_, onEdit: onEdit, onOpen: onOpen, orderTabs_: orderTabs_, parseMeals_: parseMeals_, parseSchools_: parseSchools_, polish_: polish_, present: present, pwMailHtml_: pwMailHtml_, pwMailText_: pwMailText_, readmeAgain: readmeAgain, readmeOld_: readmeOld_, readme_: readme_, refreshAll: refreshAll, removeSamples: removeSamples, removeSamples_: removeSamples_, resetAll: resetAll, restyle: restyle, rows_: rows_, safe_: safe_, same_: same_, samples_: samples_, saveGroups: saveGroups, saveLayout: saveLayout, saveLocation: saveLocation, saveSchool: saveSchool, saveSeats: saveSeats, saveSetting: saveSetting, saveTimetable: saveTimetable, schoolUrl_: schoolUrl_, searchSchool: searchSchool, seedDemo_: seedDemo_, sendFeedback: sendFeedback, services_: services_, setSetting_: setSetting_, settings_: settings_, setup: setup, setup_: setup_, shareInfo: shareInfo, sheetTool: sheetTool, sheet_: sheet_, showUrls: showUrls, sortEvents: sortEvents, sortNotes: sortNotes, sortRange_: sortRange_, sortStudents: sortStudents, studentCount_: studentCount_, studentMap_: studentMap_, styleTab_: styleTab_, sync: sync, syncNotes_: syncNotes_, syncTabs_: syncTabs_, tail_: tail_, tally_: tally_, tap: tap, teacher: teacher, text_: text_, thermo: thermo, thermoReset: thermoReset, tidyTable_: tidyTable_, timetable_: timetable_, tint_: tint_, today_: today_, toggleRaw: toggleRaw, toggleTodo: toggleTodo, tpw_: tpw_, undoPresent: undoPresent, updateSummary: updateSummary, weekday_: weekday_, writeTable_: writeTable_ };
 })();
