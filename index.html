@@ -17,7 +17,7 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="desk.css?v=my2">
+<link rel="stylesheet" href="desk.css?v=my5">
 <script src="https://accounts.google.com/gsi/client" async></script>
 <!--
   우리반 바탕화면 앱판 (kimman.kr/desk) — GAS판 v3.0 화면에 구글 시트 직접 연결을 더한 것 — 화면 · 만든 사람 김맨 (https://kimman.kr) · CC BY-SA 4.0 · 주문대
@@ -26,7 +26,7 @@
   보안: 학생 정보는 선생님 구글 시트에만. 시트 · 웹 앱 주소는 학생에게 공유하지 않습니다.
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gaegu:wght@400;700&family=Nanum+Pen+Script&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
   :root{
@@ -317,14 +317,42 @@
   .nt-list{margin:2px 0 0; padding:0 0 0 1.5em; display:grid; gap:4px; overflow:hidden; font-size:clamp(15px,12cqh,26px); line-height:1.35; color:var(--ink); font-weight:700; min-height:0}
   .nt-list li::marker{color:#2e77c8; font-weight:800}
   .nt-list .mempty{list-style:none; margin-left:-1.5em; color:var(--sub); font-weight:600; font-size:14px}
-  .ntbig{position:fixed; inset:0; z-index:86; display:none; place-items:center; background:radial-gradient(circle at 50% 30%, #fff, #eaf3fd 60%, #dbe9fb); overflow:auto}
-  .ntbig.on{display:grid}
-  #ntClose{position:fixed; top:22px; right:26px; z-index:2; font-size:18px; padding:10px 22px}
-  .ntb-in{width:min(1100px,92vw); padding:60px 0 40px}
-  .ntb-in h2{font-size:clamp(30px,4.6vw,56px); color:#1d5a99; margin-bottom:22px; text-align:center}
-  .ntb-in ol{padding-left:1.6em; display:grid; gap:.45em; font-size:clamp(26px,3.6vw,48px); line-height:1.35; color:#1f2340}
-  .ntb-in li::marker{color:#2e77c8}
-  body.night .ntbig{background:radial-gradient(circle at 50% 30%, #2b3170, #191d4a)} body.night .ntb-in h2{color:#9fc7ff} body.night .ntb-in ol{color:#fff}
+  .ntbig{position:fixed; inset:0; z-index:86; display:none; background:#5b3a22; padding:clamp(10px,1.6vw,22px)}
+  .ntbig.on{display:block}
+  /* 칠판: 나무틀 + 초록 칠판 + 분필 가루 */
+  .cb-board{--nts:1; --ntf:'Gaegu'; position:relative; height:100%; border-radius:6px; overflow:hidden; display:flex; flex-direction:column;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)'/%3E%3C/svg%3E"), radial-gradient(ellipse at 30% 20%, #3c7356 0%, #2f6148 45%, #264f3b 100%);
+    box-shadow:inset 0 0 0 clamp(8px,1vw,14px) #8b5a32, inset 0 0 0 calc(clamp(8px,1vw,14px) + 3px) #6b4224, inset 0 0 60px rgba(0,0,0,.45), 0 0 0 2px #3e2614}
+  .cb-board::before{content:""; position:absolute; inset:0; background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E"); opacity:.05; pointer-events:none}
+  .cb-board.f-pen{--ntf:'Nanum Pen Script'} .cb-board.f-jua{--ntf:'Jua'}
+  .ntb-bar{position:absolute; top:clamp(16px,2vw,28px); right:clamp(18px,2.2vw,32px); z-index:3; display:flex; gap:7px; align-items:center}
+  .cbb{font:700 16px/1 Pretendard,sans-serif; color:#eef3ea; background:rgba(255,255,255,.08); border:1.5px solid rgba(255,255,255,.35); border-radius:10px; padding:9px 14px; cursor:pointer}
+  .cbb:hover{background:rgba(255,255,255,.18)} .cbb.main{background:#f4f1e6; color:#2a4d3a; border-color:#f4f1e6}
+  .ntb-state{font:600 14px Pretendard,sans-serif; color:rgba(240,245,235,.75); margin-right:4px}
+  .ntb-in{flex:1; overflow:auto; width:min(1300px,90%); margin:0 auto; padding:clamp(60px,8vh,96px) 0 20px; font-family:var(--ntf),'Jua',sans-serif}
+  .ntb-in h2{font-family:inherit; font-weight:700; font-size:calc(clamp(34px,4.6vw,62px) * var(--nts)); color:#fff6c9; margin-bottom:.45em; text-align:center; text-shadow:0 0 1px rgba(255,255,255,.5),0 0 10px rgba(255,255,230,.18); letter-spacing:.02em}
+  #ntbList{padding-left:1.7em; display:grid; gap:.3em; font-size:calc(clamp(30px,4vw,56px) * var(--nts)); line-height:1.4; font-weight:700; color:rgba(250,250,242,.95);
+    text-shadow:0 0 1px rgba(255,255,255,.55), 0 0 8px rgba(255,255,255,.14); -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 .6'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E"); mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 .6'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E"); -webkit-mask-size:180px; mask-size:180px}
+  #ntbList li::marker{color:#ffe27a; font-weight:700}
+  #ntbList[contenteditable=true]{outline:2px dashed rgba(255,255,255,.35); outline-offset:16px; border-radius:6px; caret-color:#ffe27a; min-height:2.4em; cursor:text; -webkit-mask-image:none; mask-image:none}
+  #ntbList[contenteditable=true] li:has(> br:only-child)::before{content:"여기에 적어요"; color:rgba(255,255,255,.35)}
+  .ntb-help{margin-top:22px; text-align:center; font:600 15px Pretendard,sans-serif; color:rgba(240,245,235,.7)}
+  /* 강조: 분필 색 · 형광펜 · 밑줄 · 동그라미 */
+  .nk-y{color:#ffe27a} .nk-p{color:#ffa9cb} .nk-b{color:#9fd8ff}
+  .nk-h{background:linear-gradient(transparent 12%, rgba(216,255,94,.38) 12%, rgba(216,255,94,.38) 88%, transparent 88%); border-radius:4px; padding:0 .08em}
+  .nk-u{text-decoration:underline wavy #ffe27a; text-decoration-thickness:.07em; text-underline-offset:.18em; text-decoration-skip-ink:none}
+  .nk-o{border:.07em solid #ffa9cb; border-radius:50%; padding:0 .25em; margin:0 .05em}
+  .nt-list .nk-y, .nt-old .nk-y{color:#b7791f} .nt-list .nk-p, .nt-old .nk-p{color:#c2417a} .nt-list .nk-b, .nt-old .nk-b{color:#1d6fb8}
+  .nt-list .nk-h, .nt-old .nk-h{background:linear-gradient(transparent 15%, #f4ff9e 15%, #f4ff9e 85%, transparent 85%)}
+  .nt-list .nk-u, .nt-old .nk-u{text-decoration-color:#e0a500} .nt-list .nk-o, .nt-old .nk-o{border-color:#e5566a}
+  /* 분필 받침 */
+  .cb-tray{position:relative; z-index:2; display:flex; justify-content:center; align-items:flex-end; gap:clamp(8px,1.2vw,18px); padding:10px 20px 14px; margin:0 clamp(8px,1vw,14px) clamp(8px,1vw,14px);
+    background:linear-gradient(#a06a3c,#7a4c28); box-shadow:0 -3px 8px rgba(0,0,0,.3), inset 0 2px 0 rgba(255,255,255,.18)}
+  .cb-tray button{display:flex; flex-direction:column; align-items:center; gap:4px; background:none; border:0; cursor:pointer; padding:2px 4px; font:700 12px Pretendard,sans-serif; color:#fbe9d2; opacity:.5; transition:transform .12s, opacity .12s}
+  .cb-board.editing .cb-tray button{opacity:1} .cb-board.editing .cb-tray button:hover{transform:translateY(-4px)}
+  .chalk i{display:block; width:clamp(44px,4.4vw,64px); height:13px; border-radius:7px 4px 4px 7px; background:var(--c); box-shadow:inset 0 -3px 0 rgba(0,0,0,.15), 0 2px 3px rgba(0,0,0,.35)}
+  .chalk.mk i{height:10px; border-radius:3px; background:linear-gradient(90deg,#333 0 22%,var(--c) 22%)}
+  .eraser i{display:block; width:clamp(54px,5vw,72px); height:20px; border-radius:4px; background:linear-gradient(#f2e6d0 0 55%, #4a4a52 55%); box-shadow:0 2px 3px rgba(0,0,0,.35)}
   .nt-days{display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:8px}
   .nt-days input[type=date]{width:auto}
   #ntText{width:100%; min-height:200px; font-size:16px; line-height:1.7; resize:vertical; font-family:inherit}
@@ -985,8 +1013,23 @@
     학생 이름 · 계정 · 출결 같은 개인정보는 선생님 구글 시트에만 저장돼요. <b>시트는 학생 · 학부모 · 다른 사람에게 절대 공유하지 마세요.</b> 개인정보 관리 소홀로 생기는 문제의 책임은 사용하는 분께 있어요.<br><a href="https://kimman.kr/desk/privacy" target="_blank" rel="noopener"><b>개인정보처리방침</b></a> · <a href="https://kimman.kr/desk/terms" target="_blank" rel="noopener">이용약관</a> · 문의 <a href="mailto:rlaalscjswo1@gmail.com">rlaalscjswo1@gmail.com</a></div>
 </aside>
 
-<div class="ntbig" id="noticeBig" role="dialog" aria-label="알림장 크게 보기"><button class="btn ghost bx" id="ntClose">닫기</button>
-  <div class="ntb-in"><h2 class="jua" id="ntbTitle">알림장</h2><ol class="jua" id="ntbList"></ol></div></div>
+<div class="ntbig" id="noticeBig" role="dialog" aria-label="알림장 크게 보기">
+  <div class="cb-board" id="cbBoard">
+    <div class="ntb-bar"><span class="ntb-state" id="ntbState"></span>
+      <button class="cbb" id="ntSmaller" title="글씨 작게">가−</button><button class="cbb" id="ntBigger" title="글씨 크게">가+</button><button class="cbb" id="ntFont" title="글씨체 바꾸기">글씨체</button>
+      <button class="cbb main" id="ntEdit">✏️ 쓰기</button><button class="cbb main" id="ntDone" hidden>다 썼어요</button><button class="cbb" id="ntClose">닫기</button></div>
+    <div class="ntb-in"><h2 id="ntbTitle">알림장</h2><ol id="ntbList" spellcheck="false"></ol><p class="ntb-help" id="ntbHelp" hidden>Enter를 누르면 다음 번호 · 글자를 고른 뒤 아래 분필을 누르면 꾸며져요 · 저절로 저장돼요</p></div>
+    <div class="cb-tray" id="cbTray">
+      <button class="chalk" data-nk="w" title="흰 분필 (색 빼기)"><i style="--c:#f4f1e6"></i><span>흰색</span></button>
+      <button class="chalk" data-nk="y" title="노랑 분필"><i style="--c:#ffe27a"></i><span>노랑</span></button>
+      <button class="chalk" data-nk="p" title="분홍 분필"><i style="--c:#ffa9cb"></i><span>분홍</span></button>
+      <button class="chalk" data-nk="b" title="하늘 분필"><i style="--c:#9fd8ff"></i><span>하늘</span></button>
+      <button class="chalk mk" data-nk="h" title="형광펜"><i style="--c:#d8ff5e"></i><span>형광펜</span></button>
+      <button class="chalk mk" data-nk="u" title="물결 밑줄"><i style="--c:#ffe27a"></i><span>밑줄</span></button>
+      <button class="chalk mk" data-nk="o" title="동그라미"><i style="--c:#ffa9cb"></i><span>동그라미</span></button>
+      <button class="eraser" data-nk="x" title="꾸민 것 모두 지우기"><i></i><span>지우개</span></button>
+    </div>
+  </div></div>
 <div class="big" id="bigClock" role="dialog" aria-label="큰 시계"><button class="btn ghost bx" id="bcClose">닫기</button>
   <div class="bclock"><svg viewBox="0 0 200 200" id="analogB" aria-hidden="true"></svg>
     <div class="bcd"><span class="ap" id="bAp"></span><div class="bct jua num"><span id="bH">--</span><span class="colon">:</span><span id="bM">--</span></div><div class="bcdate" id="bDate"></div><div class="bcnow" id="bNow" hidden><i></i><span></span></div></div></div></div>
@@ -1013,10 +1056,10 @@
 
 <div class="desk-start" id="deskStart" role="dialog" aria-modal="true" aria-label="우리반 바탕화면 시작" hidden></div>
 <div class="desk-link" id="deskLink" role="status" aria-live="polite" hidden></div>
-<script src="config.js?v=my2"></script>
-<script src="gs.js?v=my2"></script>
-<script src="core.js?v=my2"></script>
-<script src="bridge.js?v=my2"></script>
-<script src="app.js?v=my2"></script>
+<script src="config.js?v=my5"></script>
+<script src="gs.js?v=my5"></script>
+<script src="core.js?v=my5"></script>
+<script src="bridge.js?v=my5"></script>
+<script src="app.js?v=my5"></script>
 </body>
 </html>

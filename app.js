@@ -754,7 +754,7 @@
   $("tpwGo").onclick = function () {
     var pw = $("tpw").value.trim(); if (!pw) { toast("선생님 비밀번호를 적어 주세요"); $("tpw").focus(); return; }
     busy("선생님 비밀번호 확인 중", "");
-    google.script.run.withSuccessHandler(function () { busyEnd(true, "어서 오세요, 선생님", ""); TPW = pw; try { sessionStorage.setItem("classdesk-tpw", pw); } catch (e) {} $("tpw").value = ""; var go = TGO; closeModal("tlock"); teacherOn(); if (go === "unlock") { kidLock(false); toast("잠금을 풀었어요"); } else openDrawer(go === "month" ? "month" : "today"); })
+    google.script.run.withSuccessHandler(function () { busyEnd(true, "어서 오세요, 선생님", ""); TPW = pw; try { sessionStorage.setItem("classdesk-tpw", pw); } catch (e) {} $("tpw").value = ""; var go = TGO; closeModal("tlock"); teacherOn(); if (go === "unlock") { kidLock(false); toast("잠금을 풀었어요"); } else if (go === "notice") ntEditOn(); else openDrawer(go === "month" ? "month" : "today"); })
       .withFailureHandler(function (e) { busyEnd(false, "비밀번호가 맞지 않아요", "시트 '설정' 탭의 선생님 비밀번호"); }).checkTeacher(CODE, pw);
   };
   $("pwFind").onclick = function () { $("pwFindBox").hidden = !$("pwFindBox").hidden; };
@@ -764,7 +764,7 @@
       .withFailureHandler(function (e) { b.disabled = false; busyEnd(false, "보내지 못했어요", ((e && e.message) || "").slice(0, 70)); }).mailPw(CODE);
   };
   function teacherOn() { document.body.classList.add("teacher"); $("tchTxt").textContent = "선생님 서랍"; $("tchBtn").querySelector("svg").outerHTML = ico("unlock"); poke(); if (D) drawPanel(); }
-  function teacherOff() {
+  function teacherOff() { if (typeof NTE !== "undefined" && NTE.on) ntEditOff();
     TPW = ""; try { sessionStorage.removeItem("classdesk-tpw"); } catch (e) {}
     document.body.classList.remove("teacher"); closeDrawer(); if (EDIT) editOff(false); if (D) drawPanel();
     if (TW && !TW.closed) { try { TW.close(); } catch (e) {} } TW = null;
@@ -945,24 +945,139 @@
   }
 
   // ── 알림장: 칠판 카드(오늘 것) + 크게 보기 + 서랍 '알림장' 탭에서 날짜별로 쓰기 ──
+  // 꾸밈 표시: [[y:글자]] 노랑 · [[p:]] 분홍 · [[b:]] 하늘 · [[h:]] 형광펜 · [[u:]] 밑줄 · [[o:]] 동그라미 (겹쳐 쓰면 [[y,h:글자]])
+  function ntFmt(line) { return esc(line).replace(/\[\[([ypbhuo](?:,[ypbhuo])*):(.*?)\]\]/g, function (m, k, t) { return '<span class="' + k.split(",").map(function (x) { return "nk-" + x; }).join(" ") + '">' + t + "</span>"; }); }
+  function ntPlain(line) { return String(line).replace(/\[\[[ypbhuo,]+:(.*?)\]\]/g, "$1"); }
   function ntLines(t) { return String(t || "").split("\n").map(function (x) { return x.replace(/^\s*(\d+[.)]|[①-⑳]|[-•·])\s*/, "").trim(); }).filter(String); }
   function drawNotice() {
     if (!$("noticeList")) return;
     var n = D.notice, li = n ? ntLines(n.text) : [];
     $("noticeDay").textContent = mdText(D.today).replace(/^\d+월 /, "");
-    $("noticeList").innerHTML = li.length ? li.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") : '<li class="mempty">오늘 알림장이 아직 없어요</li>';
+    $("noticeList").innerHTML = li.length ? li.map(function (x) { return "<li>" + ntFmt(x) + "</li>"; }).join("") : '<li class="mempty">오늘 알림장이 아직 없어요</li>';
     if ($("noticeBig").classList.contains("on")) noticeBigDraw();
   }
   function noticeBigDraw() {
+    if (NTE.on) return;
     var li = D.notice ? ntLines(D.notice.text) : [];
     $("ntbTitle").textContent = mdText(D.today) + " 알림장";
-    $("ntbList").innerHTML = li.length ? li.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") : '<li style="list-style:none">오늘 알림장이 아직 없어요</li>';
+    $("ntbList").innerHTML = li.length ? li.map(function (x) { return "<li>" + ntFmt(x) + "</li>"; }).join("") : '<li style="list-style:none">오늘 알림장이 아직 없어요</li>';
   }
   $("noticeCard").addEventListener("click", function (e) { if (EDIT || e.target.closest(".tools") || !D) return; noticeBigDraw(); $("noticeBig").classList.add("on"); });
   $("noticeCard").addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && !EDIT) { e.preventDefault(); $("noticeCard").click(); } });
-  $("ntClose").onclick = function () { $("noticeBig").classList.remove("on"); };
-  $("noticeBig").addEventListener("click", function (e) { if (e.target === $("noticeBig")) $("noticeBig").classList.remove("on"); });
-  addEventListener("keydown", function (e) { if (e.key === "Escape") $("noticeBig").classList.remove("on"); });
+  // 칠판 크게 보기에서 바로 쓰기 (선생님 모드에서만). 쓰는 대로 칠판에 보이고, 손을 멈추면 저절로 저장
+  var NTE = { on: false, t: null, last: "" };
+  function ntBigClose() { if (NTE.on) ntEditOff(); $("noticeBig").classList.remove("on"); }
+  function ntKinds(el) { var k = []; for (var n = el; n && n.id !== "ntbList"; n = n.parentNode) if (n.dataset && n.dataset.nk) n.dataset.nk.split(",").forEach(function (x) { if (k.indexOf(x) < 0) k.push(x); }); return k.sort(); }
+  function ntLineOf(li) {
+    var out = [], walk = function (node) {
+      node.childNodes.forEach(function (c) {
+        if (c.nodeType === 3) { var t = c.nodeValue.replace(/\[\[|\]\]/g, ""); if (!t) return; var k = ntKinds(c.parentNode), last = out[out.length - 1]; if (last && last.k === k.join(",")) last.t += t; else out.push({ k: k.join(","), t: t }); }
+        else if (c.nodeType === 1 && c.tagName !== "BR") walk(c);
+      });
+    };
+    walk(li);
+    return out.map(function (o) { return o.k ? "[[" + o.k + ":" + o.t + "]]" : o.t; }).join("").replace(/\s+$/, "");
+  }
+  function ntText() {
+    var ol = $("ntbList"), lis = ol.querySelectorAll(":scope > li");
+    var lines = lis.length ? [].map.call(lis, ntLineOf) : ol.innerText.split("\n");
+    return lines.map(function (x) { return x.replace(/^\s*(\d+[.)]|[①-⑳]|[-•·])\s*/, "").trim(); }).filter(function (x) { return ntPlain(x).trim(); }).join("\n");
+  }
+  // 고른 글자에 분필 색 · 형광펜 · 밑줄 · 동그라미 (줄이 여러 개여도 줄마다)
+  function ntApply(k) {
+    var ol = $("ntbList"), sel = getSelection();
+    if (!sel.rangeCount || sel.isCollapsed || !ol.contains(sel.anchorNode)) { toast("꾸밀 글자를 먼저 끌어서 골라 주세요"); return; }
+    var R = sel.getRangeAt(0), made = [];
+    var COL = ["y", "p", "b"];
+    ol.querySelectorAll(":scope > li").forEach(function (li) {
+      if (!R.intersectsNode(li)) return;
+      var r = document.createRange(); r.selectNodeContents(li);
+      if (li.contains(R.startContainer)) r.setStart(R.startContainer, R.startOffset);
+      if (li.contains(R.endContainer)) r.setEnd(R.endContainer, R.endOffset);
+      if (r.collapsed) return;
+      // 고른 부분의 글자 조각마다 지금 꾸밈을 읽어 새 꾸밈을 더하거나 빼서 다시 감싼다
+      var spanOf = function (n) { var e = n.nodeType === 3 ? n.parentNode : n; return e && e.closest && li.contains(e) ? e.closest("span[data-nk]") : null; };
+      var hs = spanOf(r.startContainer), he = spanOf(r.endContainer), inherit = hs && hs === he ? ntKinds(hs) : [];
+      var frag = r.extractContents(), pieces = [];
+      (function walk(node, inh) {
+        node.childNodes.forEach(function (c) {
+          var kk = inh.slice(); if (c.nodeType === 1 && c.dataset && c.dataset.nk) c.dataset.nk.split(",").forEach(function (x) { if (kk.indexOf(x) < 0) kk.push(x); });
+          if (c.nodeType === 3) { if (c.nodeValue) pieces.push({ t: c.nodeValue, k: kk }); } else if (c.nodeType === 1 && c.tagName !== "BR") walk(c, kk);
+        });
+      })(frag, inherit);
+      var all = pieces.length && pieces.every(function (pc) { return pc.k.indexOf(k) >= 0; });
+      var out = document.createDocumentFragment();
+      pieces.forEach(function (pc) {
+        var kk = pc.k.slice();
+        if (k === "x") kk = [];
+        else if (k === "w") kk = kk.filter(function (x) { return COL.indexOf(x) < 0; });
+        else if (all) kk = kk.filter(function (x) { return x !== k; });
+        else { if (COL.indexOf(k) >= 0) kk = kk.filter(function (x) { return COL.indexOf(x) < 0; }); if (kk.indexOf(k) < 0) kk.push(k); }
+        kk.sort();
+        var tn = document.createTextNode(pc.t);
+        if (!kk.length) { out.appendChild(tn); made.push(tn); return; }
+        var sp = document.createElement("span"); sp.dataset.nk = kk.join(","); sp.className = kk.map(function (x) { return "nk-" + x; }).join(" "); sp.appendChild(tn); out.appendChild(sp); made.push(sp);
+      });
+      // 넣을 자리가 꾸밈 span 안이면 그 span을 둘로 쪼개고 사이에 넣는다
+      var host = spanOf(r.startContainer);
+      if (host) {
+        var rest = document.createRange(); rest.setStart(r.startContainer, r.startOffset); rest.setEnd(host, host.childNodes.length);
+        var after = host.cloneNode(false); after.appendChild(rest.extractContents());
+        host.parentNode.insertBefore(after, host.nextSibling);
+        host.parentNode.insertBefore(out, after);
+      } else r.insertNode(out);
+      li.querySelectorAll("span[data-nk]").forEach(function (x) { if (!x.textContent) x.remove(); });
+    });
+    if (made.length) { var nr = document.createRange(); nr.setStartBefore(made[0]); nr.setEndAfter(made[made.length - 1]); sel.removeAllRanges(); sel.addRange(nr); }
+    $("ntbList").dispatchEvent(new Event("input"));
+  }
+  // 글씨 크기 · 글씨체 (이 컴퓨터에 기억)
+  var NTS = Number(ls("classdesk-ntsize")) || 1, NTF = ls("classdesk-ntfont") || "gaegu";
+  function ntView() { $("cbBoard").style.setProperty("--nts", NTS); $("cbBoard").classList.toggle("f-pen", NTF === "pen"); $("cbBoard").classList.toggle("f-jua", NTF === "jua"); }
+  ntView();
+  $("ntSmaller").onclick = function () { NTS = Math.max(0.6, Math.round((NTS - 0.1) * 10) / 10); ls("classdesk-ntsize", String(NTS)); ntView(); };
+  $("ntBigger").onclick = function () { NTS = Math.min(2.2, Math.round((NTS + 0.1) * 10) / 10); ls("classdesk-ntsize", String(NTS)); ntView(); };
+  $("ntFont").onclick = function () { NTF = NTF === "gaegu" ? "pen" : NTF === "pen" ? "jua" : "gaegu"; ls("classdesk-ntfont", NTF); ntView(); toast({ gaegu: "분필 글씨", pen: "손글씨 (나눔펜)", jua: "또박또박 글씨" }[NTF]); };
+  $("cbTray").addEventListener("pointerdown", function (e) { if (e.target.closest("button")) e.preventDefault(); });
+  $("cbTray").addEventListener("mousedown", function (e) { if (e.target.closest("button")) e.preventDefault(); });
+  $("cbTray").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-nk]"); if (!b) return;
+    if (!NTE.on) { toast("✏️ 쓰기를 누른 뒤에 쓸 수 있어요"); return; }
+    ntApply(b.dataset.nk);
+  });
+  function ntEditOn() {
+    if (!D) return;
+    if (!TPW) { TGO = "notice"; $("tlock").classList.add("over-lock"); openModal("tlock"); setTimeout(function () { $("tpw").focus(); }, 60); return; }
+    noticeBigDraw(); $("noticeBig").classList.add("on");
+    NTE.on = true; NTE.last = D.notice ? ntLines(D.notice.text).join("\n") : "";
+    var ol = $("ntbList");
+    if (!NTE.last) ol.innerHTML = "<li><br></li>";
+    ol.contentEditable = "true"; $("cbBoard").classList.add("editing"); $("ntEdit").hidden = true; $("ntDone").hidden = false; $("ntbHelp").hidden = false; $("ntbState").textContent = "";
+    ol.focus();
+    var r = document.createRange(); r.selectNodeContents(ol.lastElementChild || ol); r.collapse(false); var sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  }
+  function ntEditOff() {
+    clearTimeout(NTE.t); ntAutoSave(true);
+    NTE.on = false; $("ntbList").contentEditable = "false"; $("cbBoard").classList.remove("editing"); $("ntEdit").hidden = false; $("ntDone").hidden = true; $("ntbHelp").hidden = true;
+    noticeBigDraw(); drawNotice();
+  }
+  function ntAutoSave(now) {
+    if (!NTE.on || !TPW) return;
+    var text = ntText(); if (text === NTE.last) { if (now) $("ntbState").textContent = ""; return; }
+    NTE.last = text; var d = D.today;
+    $("ntbState").textContent = "저장 중…";
+    write("noticeSave", [TPW, d, text], {
+      mut: function (dd) { dd.notice = text ? { d: d, text: text } : null; if (typeof NT !== "undefined" && NT.months) delete NT.months[d.slice(0, 7)]; },
+      after: function () { $("ntbState").textContent = "저장됨 " + hm(new Date()); try { if (TW && !TW.closed && TW.NT) { TW.NT.months = {}; if (TW.DTAB === "notice") TW.drawDrawer(); } } catch (x) {} } });
+  }
+  $("ntbList").addEventListener("input", function () { if (!NTE.on) return; poke(); $("ntbState").textContent = "쓰는 중…"; clearTimeout(NTE.t); NTE.t = setTimeout(ntAutoSave, 1800); });
+  $("ntbList").addEventListener("paste", function (e) { if (!NTE.on) return; e.preventDefault(); var t = (e.clipboardData || window.clipboardData).getData("text/plain"); document.execCommand("insertText", false, t); });
+  $("ntbList").addEventListener("keydown", function (e) { if (NTE.on && !$("ntbList").querySelector("li")) { $("ntbList").innerHTML = "<li><br></li>"; } });
+  $("ntEdit").onclick = ntEditOn;
+  $("ntDone").onclick = function () { ntEditOff(); toast("알림장을 저장했어요"); };
+  $("ntClose").onclick = ntBigClose;
+  $("noticeBig").addEventListener("click", function (e) { if (e.target === $("noticeBig") && !NTE.on) ntBigClose(); });
+  addEventListener("keydown", function (e) { if (e.key === "Escape" && $("noticeBig").classList.contains("on")) ntBigClose(); });
 
   var NT = { d: "", months: {}, loading: {}, drafts: {} };
   function ntNextDay(ymd) { var x = ymdAdd(ymd, 1), w = new Date(x + "T12:00:00").getDay(); return w === 6 ? ymdAdd(x, 2) : w === 0 ? ymdAdd(x, 1) : x; }
@@ -981,13 +1096,13 @@
       (cur && cur.at ? '<span class="muted" style="margin-left:auto; font-weight:600; font-size:12px">저장 ' + esc(String(cur.at).slice(5)) + "</span>" : "") + "</h4>" +
       '<div class="nt-days"><button class="chip' + (NT.d === D.today ? " on" : "") + '" data-ntd="' + D.today + '">오늘</button><button class="chip' + (NT.d === nx ? " on" : "") + '" data-ntd="' + nx + '">다음 날 (' + mdText(nx).replace(/^\d+월 /, "") + ')</button>' +
       '<input class="field" type="date" id="ntDate" value="' + NT.d + '"></div>' +
-      '<textarea class="field" id="ntText" maxlength="1500" placeholder="한 줄에 하나씩 적어요. 번호는 저절로 붙어요.\n예)\n수학 익힘책 54~55쪽\n내일 체육복 입고 오기\n가정통신문(현장체험학습) 회신">' + esc(val) + "</textarea>" +
+      '<textarea class="field" id="ntText" maxlength="1500" placeholder="한 줄에 하나씩 적어요. 번호는 저절로 붙어요. ([[y:글자]]처럼 보이는 건 칠판에서 넣은 꾸밈이에요)\n예)\n수학 익힘책 54~55쪽\n내일 체육복 입고 오기\n가정통신문(현장체험학습) 회신">' + esc(val) + "</textarea>" +
       '<div class="frow" style="margin-top:8px"><button class="btn" id="ntSave">저장</button>' + (dr != null ? '<button class="btn ghost" id="ntUndo">고친 것 버리기</button>' : "") +
       (NT.d === D.today ? '<button class="btn ghost" id="ntBig">칠판에 크게 띄우기</button>' : "") + (cur ? '<button class="btn ghost" id="ntDel" style="margin-left:auto">이 날 알림장 지우기</button>' : "") + "</div></div>";
     var list = NT.months[m];
     h += '<div class="dsec"><h4>' + ico("cal") + Number(m.slice(5)) + "월 알림장" + '<span class="lp-nav"><button class="btn ghost sm" data-ntm="-1">◀ 지난달</button><button class="btn ghost sm" data-ntm="1">다음 달 ▶</button></span></h4>' +
       (list.length ? '<div class="nt-old">' + list.map(function (x) {
-        return '<button data-ntd="' + x.d + '"' + (x.d === NT.d ? ' class="sel"' : "") + "><b>" + esc(mdText(x.d).replace(/^\d+월 /, "")) + "</b><span>" + ntLines(x.text).map(function (l, i) { return (i + 1) + ". " + esc(l); }).join("<br>") + "</span></button>";
+        return '<button data-ntd="' + x.d + '"' + (x.d === NT.d ? ' class="sel"' : "") + "><b>" + esc(mdText(x.d).replace(/^\d+월 /, "")) + "</b><span>" + ntLines(x.text).map(function (l, i) { return (i + 1) + ". " + ntFmt(l); }).join("<br>") + "</span></button>";
       }).join("") + "</div>" : '<p class="muted">이 달에 적은 알림장이 없어요</p>') + "</div>";
     return h;
   }
