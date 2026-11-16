@@ -450,8 +450,8 @@
     $("goal").textContent = nx ? "'" + nx.name + "'까지 " + (nx.at - T.total) + "도 남았어요" : RW.length ? "모든 보상 달성! 정말 멋져요" : "목표 " + T.goal + "도까지 " + Math.max(0, T.goal - T.total) + "도 남았어요";
     // 보상 단계: 받은 것 ✓ · 다음 것 강조
     $("trw").innerHTML = RW.map(function (r) { var st = T.total >= r.at ? "ok" : r === nx ? "next" : ""; return '<li class="' + st + '"><b class="num">' + r.at + "°</b><span>" + esc(r.name) + "</span>" + (st === "ok" ? ico("check") : "") + "</li>"; }).join("");
-    var w = T.week, R = T.rules || {}, nm = Object.keys(D.marks.name || {}).length, au = [];
-    if (R.noName) au.push('<span class="' + (nm ? "bad" : "good") + '">오늘 수업방해 ' + nm + "명" + (nm ? " · 쉬는 시간 −" + nm + "분" : " · " + esc(R.cut) + " +" + R.noName + "°") + "</span>");
+    var w = T.week, R = T.rules || {}, nm = Object.keys(D.marks.name || {}).length, nd = D.marks.nameDay || 0, au = [];
+    if (R.noName) au.push('<span class="' + (nd ? "bad" : "good") + '">' + (nd ? "오늘 수업방해 " + nd + "번" + (nm ? " · 쉬는 시간 −" + nm + "분" : "") : "수업방해 0번 · " + esc(R.cut) + " +" + R.noName + "°") + "</span>");
     if (R.role && w) au.push('<span class="' + (w.days && w.pct >= w.need ? "good" : "") + '">이번 주 1인 1역 <b class="num">' + (w.days ? w.pct : 0) + "%</b>/" + w.need + "%</span>");
     $("tauto").innerHTML = au.join("");
     if (THLAST != null && !TWIN && T.total > THLAST) { var got = RW.filter(function (r) { return THLAST < r.at && T.total >= r.at; }); if (got.length) { var g = got[got.length - 1]; setTimeout(function () { party(g.at + "도 달성! 🎁 " + g.name); }, 700); } }
@@ -514,7 +514,10 @@
       MODE === "done" ? (TPW ? '<input class="act-in" id="actIn" maxlength="40" value="' + esc(mk.act || "") + '" placeholder="지금 활동 이름" aria-label="지금 활동 이름 (고치고 Enter)" title="고치고 Enter를 누르면 바뀌어요">' :
         '<span class="act">' + ico("note") + esc(mk.act || "지금 활동") + "</span>") + '<span>다 한 친구 <b class="num">' + cnt + "</b> / " + n + '</span><span class="pbar"><i style="width:' + Math.round(cnt / n * 100) + '%"></i></span>' :
       MODE === "role" ? '<span>역할 다 한 친구 <b class="num">' + cnt + "</b> / " + n + '</span><span class="pbar"><i style="width:' + Math.round(cnt / n * 100) + '%"></i></span>' :
-      MODE === "name" ? (function () { var k = Object.keys(mk.name || {}).length, R = D.thermo.rules || {}; return '<span>오늘 수업방해 <b class="num">' + k + "</b>명" + (k ? ' · 쉬는 시간 <b class="num">−' + k + "</b>분" : "") + "</span>" + (R.noName ? '<span class="nmhint">' + (k ? "오늘은 온도계가 오르지 않아요" : "이대로 " + esc(R.cut || "14:30") + "까지 가면 온도계 +" + R.noName + "도") + "</span>" : "") + (TPW ? "" : '<span class="nmhint">선택 · 취소는 선생님만</span>'); })() :
+      MODE === "name" ? (function () { var k = Object.keys(mk.name || {}).length, day = mk.nameDay || 0, R = D.thermo.rules || {};
+        return '<span>지금 수업방해 <b class="num">' + k + "</b>명" + (k ? ' · 쉬는 시간 <b class="num">−' + k + "</b>분" : "") + "</span>" +
+          (R.noName ? '<span class="nmhint">' + (day ? "오늘 " + day + "번 · 온도계가 오르지 않아요" : "이대로 " + esc(R.cut || "14:30") + "까지 가면 온도계 +" + R.noName + "도") + "</span>" : "") +
+          (TPW ? (k ? '<button class="btn sm nmreset" id="nmReset">교시 끝 · 리셋</button>' : "") : '<span class="nmhint">선택 · 취소는 선생님만</span>'); })() :
       MODE === "talk" ? '<span>오늘 발표 <b class="num">' + talkTotal + "</b>번 · 손 든 친구 <b class='num'>" + Object.keys(mk.talk).length + "</b>명</span>" :
       MODE === "feel" ? '<span>내 번호를 누르고 마음 색을 골라요 · 마음 나눈 친구 <b class="num">' + Object.keys(mk.feel || {}).length + "</b> / " + n + "</span>" :
       "<span>내 번호를 누르면 아이디와 비밀번호 힌트가 30초 동안 보여요</span>";
@@ -532,6 +535,11 @@
     }).join("");
   }
   document.addEventListener("click", function (e) {
+    if (e.target.closest("#nmReset")) {
+      if (needTeacher()) return; var k = Object.keys(D.marks.name || {}).length;
+      write("nameReset", [TPW], { busy: "수업방해 리셋 중", msg: k + "명 리셋 · 기록은 그대로 남아요", mut: function (d) { d.marks.name = {}; } });
+      return;
+    }
     var t = e.target.closest("[data-mode]"); if (t) { MODE = t.dataset.mode; drawPanel(); return; }
     var b = e.target.closest(".nb"); if (b && D) { tapNo(Number(b.dataset.no), b); return; }
   });
@@ -549,9 +557,9 @@
     if (MODE === "acct") return showAccount(no);
     if (MODE === "name") {
       if (needTeacher()) return;
-      var onN = !(mk.name || {})[no];
-      write("nameMark", [TPW, no], { busy: onN ? who + " 수업방해 선택 중" : who + " 수업방해 취소 중", msg: onN ? who + " 수업방해" : who + " 수업방해 취소",
-        mut: function (d) { d.marks.name = d.marks.name || {}; if (onN) d.marks.name[no] = 1; else delete d.marks.name[no]; },
+      var onN = !(mk.name || {})[no], pl = periodNow(), lab = pl.cur ? pl.cur.p.n + "교시" : (function () { var last = null, m = new Date().getHours() * 60 + new Date().getMinutes(); D.tt.periods.forEach(function (p) { if (toMin(String(p.time).split("-")[0]) <= m) last = p; }); return last ? last.n + "교시 뒤" : "수업 전"; })();
+      write("nameMark", [TPW, no, lab], { busy: onN ? who + " 수업방해 선택 중" : who + " 수업방해 취소 중", msg: onN ? who + " 수업방해" : who + " 수업방해 취소",
+        mut: function (d) { d.marks.name = d.marks.name || {}; if (onN) { d.marks.name[no] = 1; d.marks.nameDay = (d.marks.nameDay || 0) + 1; } else delete d.marks.name[no]; },
         after: function (r) { if (r && r.undone) { toast("오늘 '수업방해 없는 날' +" + r.undone + "도를 되돌렸어요"); call("getAll", [], function () { syncState(); }, true); } } });
       return;
     }
@@ -1195,6 +1203,7 @@
       '<div class="thr-rule"><b>1인 1역 주간</b><span>한 주(월~금) 1인 1역 다 한 비율이</span><span class="frow"><input class="field num" type="number" min="1" max="100" id="thPct" value="' + E.rolePct + '" style="width:70px"><span>% 이상이면</span><input class="field num" type="number" min="0" max="50" id="thRole" value="' + E.role + '" style="width:70px"><span>도 오르기</span></span>' +
       '<span class="muted">이번 주 지금까지 ' + (w.days ? w.pct + "% (" + w.days + "일)" : "기록 없음") + " · 금요일 정산 시각에 반영돼요</span></div>" +
       '<p class="muted" style="margin-top:6px">0으로 적으면 그 규칙은 꺼져요. 번호판 기록이 하나도 없는 날(쉬는 날)은 세지 않아요. 정산 뒤에 수업방해를 선택하면 그날 오른 온도는 다시 내려가요.</p></div>' +
+      nameLogHTML() +
       '<div class="dsec"><h4>' + ico("trophy") + '보상 단계</h4>' + rows +
       '<div class="frow" style="margin-top:6px"><button class="btn ghost sm" id="thrAdd">+ 보상 더하기</button><span class="muted">가장 높은 보상 온도가 온도계 끝(목표)이 돼요</span></div></div>' +
       '<div class="frow"><button class="btn" id="thrSave">규칙 · 보상 저장</button><button class="btn ghost" id="thrUndo">고친 것 버리기</button><button class="btn ghost" id="thReset" style="margin-left:auto">온도계 0도로 새 출발</button></div>';
@@ -1216,6 +1225,35 @@
       var o = { noName: THE.noName || 0, cut: THE.cut, rolePct: THE.rolePct || 80, role: THE.role || 0, rewards: rw };
       write("thermoRulesSave", [TPW, o], { busy: "온도계 규칙 저장 중", msg: "온도계 규칙 · 보상을 저장했어요",
         mut: function (d) { d.thermo.rewards = rw.map(function (r) { return { at: r.at, name: String(r.name).trim() }; }); d.thermo.goal = rw[rw.length - 1].at; d.thermo.rules = { noName: o.noName, cut: o.cut, rolePct: o.rolePct, role: o.role }; if (d.thermo.week) d.thermo.week.need = o.rolePct; THE = null; } });
+      drawDrawer(); return;
+    }
+  });
+
+
+  // 서랍 > 온도계: 그날 수업방해 기록 (취소해도 남아 있음 · 실수만 지우기)
+  var NL = { d: "", data: null, loading: false };
+  function nameLogLoad(force) {
+    if (NL.loading || (NL.data && NL.data.d === NL.d && !force)) return; NL.loading = true;
+    google.script.run.withSuccessHandler(function (r) { NL.loading = false; NL.data = r; if (DTAB === "thermo") drawDrawer(); }).withFailureHandler(function (e) { NL.loading = false; fail(e); }).nameList(CODE, TPW, NL.d);
+  }
+  function nameLogHTML() {
+    if (!NL.d) NL.d = D.today;
+    var head = '<div class="dsec"><h4>' + ico("x") + mdText(NL.d) + ' 수업방해 기록<span class="lp-nav"><button class="btn ghost sm" data-nld="-1">◀</button>' + (NL.d !== D.today ? '<button class="btn ghost sm" data-nld="0">오늘</button>' : "") + '<button class="btn ghost sm" data-nld="1">▶</button></span></h4>';
+    if (!NL.data || NL.data.d !== NL.d) { nameLogLoad(); return head + '<p class="muted">가져오는 중...</p></div>'; }
+    var L = NL.data.list;
+    return head + (L.length ? '<div class="nl-list">' + L.map(function (x) {
+      return '<div class="nl-row' + (x.off ? " off" : "") + '"><span class="num">' + esc(x.t) + "</span><b>" + esc(x.label || "") + "</b><span>" + x.no + "번 " + esc(x.name || "") + "</span><em>" + (x.off ? "리셋됨" : "지금 선택") + '</em><button class="btn ghost sm" data-nldel="' + esc(x.at) + '|' + x.no + '">기록 지우기</button></div>';
+    }).join("") + '</div><p class="muted" style="margin-top:6px">번호판에서 취소하거나 리셋해도 기록은 남아요. 실수로 누른 것만 [기록 지우기]로 지워 주세요. 기록이 하나라도 있으면 그날은 온도계가 오르지 않아요.</p>' : '<p class="muted">이날은 수업방해 기록이 없어요</p>') + "</div>";
+  }
+  $("dbody").addEventListener("click", function (e) {
+    if (DTAB !== "thermo") return; var t = e.target.closest("button"); if (!t) return;
+    if (t.dataset.nld != null) { var n = Number(t.dataset.nld); NL.d = n ? ymdAdd(NL.d, n) : D.today; NL.data = null; drawDrawer(); return; }
+    if (t.dataset.nldel) {
+      if (!t.classList.contains("sure")) { t.classList.add("sure"); t.textContent = "한 번 더"; setTimeout(function () { if (t.isConnected) { t.classList.remove("sure"); t.textContent = "기록 지우기"; } }, 4000); return; }
+      var a = t.dataset.nldel.split("|");
+      write("nameDel", [TPW, a[0], Number(a[1])], { busy: "기록 지우는 중", msg: "수업방해 기록을 지웠어요",
+        mut: function (d) { if (NL.data) NL.data.list = NL.data.list.filter(function (x) { return !(String(x.at) === a[0] && x.no === Number(a[1])); }); if (NL.d === d.today) { d.marks.nameDay = Math.max(0, (d.marks.nameDay || 1) - 1); } },
+        after: function () { NL.data = null; nameLogLoad(true); try { if (TOP && !TOP.closed) TOP.DESKAPP.refresh(); } catch (x) {} } });
       drawDrawer(); return;
     }
   });
