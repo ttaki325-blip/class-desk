@@ -962,7 +962,7 @@
     $("ntbTitle").textContent = mdText(D.today) + " 알림장";
     $("ntbList").innerHTML = li.length ? li.map(function (x) { return "<li>" + ntFmt(x) + "</li>"; }).join("") : '<li style="list-style:none">오늘 알림장이 아직 없어요</li>';
   }
-  $("noticeCard").addEventListener("click", function (e) { if (EDIT || e.target.closest(".tools") || !D) return; noticeBigDraw(); $("noticeBig").classList.add("on"); });
+  $("noticeCard").addEventListener("click", function (e) { if (EDIT || e.target.closest(".tools") || !D) return; ntFontsLoad(); noticeBigDraw(); $("noticeBig").classList.add("on"); });
   $("noticeCard").addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && !EDIT) { e.preventDefault(); $("noticeCard").click(); } });
   // 칠판 크게 보기에서 바로 쓰기 (선생님 모드에서만). 쓰는 대로 칠판에 보이고, 손을 멈추면 저절로 저장
   var NTE = { on: false, t: null, last: "" };
@@ -1032,12 +1032,40 @@
     $("ntbList").dispatchEvent(new Event("input"));
   }
   // 글씨 크기 · 글씨체 (이 컴퓨터에 기억)
-  var NTS = Number(ls("classdesk-ntsize")) || 1, NTF = ls("classdesk-ntfont") || "gaegu";
-  function ntView() { $("cbBoard").style.setProperty("--nts", NTS); $("cbBoard").classList.toggle("f-pen", NTF === "pen"); $("cbBoard").classList.toggle("f-jua", NTF === "jua"); }
+  var NTFONTS = [   // [id, 이름, 글꼴, 크기 보정, 굵기]
+    ["gaegu", "분필 글씨", "Gaegu", 1, "700"], ["pen", "나눔손글씨 펜", "Nanum Pen Script", 1.22, "400"], ["jua", "또박또박 (주아)", "Jua", 1, "400"],
+    ["gamja", "감자꽃", "Gamja Flower", 1.05, "400"], ["melody", "하이멜로디", "Hi Melody", 1.12, "400"], ["story", "푸어스토리", "Poor Story", 1, "400"],
+    ["single", "싱글데이", "Single Day", 1.05, "400"], ["dongle", "동글", "Dongle", 1.45, "700"], ["yeon", "연성", "Yeon Sung", 1, "400"],
+    ["dokdo", "동해독도 (붓글씨)", "East Sea Dokdo", 1.3, "400"], ["dohyeon", "도현 (굵게)", "Do Hyeon", 1, "400"], ["gowun", "고운돋움", "Gowun Dodum", 1, "400"]];
+  var NTS = Number(ls("classdesk-ntsize")) || 1, NTF = ls("classdesk-ntfont") || "gaegu", NTFL = false;
+  function ntFontsLoad() {
+    if (NTFL) return; NTFL = true;
+    var l = document.createElement("link"); l.rel = "stylesheet";
+    l.href = "https://fonts.googleapis.com/css2?" + NTFONTS.filter(function (f) { return f[2] !== "Jua"; }).map(function (f) { return "family=" + f[2].replace(/ /g, "+") + (f[2] === "Gaegu" || f[2] === "Dongle" ? ":wght@400;700" : ""); }).join("&") + "&display=swap";
+    document.head.appendChild(l);
+  }
+  function ntView() {
+    var f = NTFONTS.filter(function (x) { return x[0] === NTF; })[0] || NTFONTS[0], b = $("cbBoard");
+    b.style.setProperty("--nts", NTS); b.style.setProperty("--ntf", "'" + f[2] + "'"); b.style.setProperty("--ntz", f[3]);
+    $("ntbList").style.fontWeight = f[4]; $("ntbTitle").style.fontWeight = f[4];
+  }
   ntView();
   $("ntSmaller").onclick = function () { NTS = Math.max(0.6, Math.round((NTS - 0.1) * 10) / 10); ls("classdesk-ntsize", String(NTS)); ntView(); };
   $("ntBigger").onclick = function () { NTS = Math.min(2.2, Math.round((NTS + 0.1) * 10) / 10); ls("classdesk-ntsize", String(NTS)); ntView(); };
-  $("ntFont").onclick = function () { NTF = NTF === "gaegu" ? "pen" : NTF === "pen" ? "jua" : "gaegu"; ls("classdesk-ntfont", NTF); ntView(); toast({ gaegu: "분필 글씨", pen: "손글씨 (나눔펜)", jua: "또박또박 글씨" }[NTF]); };
+  $("ntFont").onclick = function (e) {
+    e.stopPropagation(); ntFontsLoad();
+    var box = $("ntFonts");
+    if (box.classList.contains("on")) { box.classList.remove("on"); return; }
+    box.innerHTML = NTFONTS.map(function (f) { return '<button class="' + (f[0] === NTF ? "on" : "") + '" data-ntf="' + f[0] + '"><b style="font-family:\'' + f[2] + '\'; font-weight:' + f[4] + "; font-size:" + Math.round(26 * f[3]) + 'px">내일 준비물 123</b><small>' + f[1] + "</small></button>"; }).join("");
+    box.classList.add("on");
+  };
+  $("ntFonts").addEventListener("mousedown", function (e) { e.preventDefault(); });
+  $("ntFonts").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-ntf]"); if (!b) return; e.stopPropagation();
+    NTF = b.dataset.ntf; ls("classdesk-ntfont", NTF); ntView();
+    $("ntFonts").querySelectorAll("button").forEach(function (x) { x.classList.toggle("on", x === b); });
+  });
+  document.addEventListener("click", function (e) { if (!e.target.closest("#ntFonts") && e.target.id !== "ntFont") $("ntFonts").classList.remove("on"); });
   $("cbTray").addEventListener("pointerdown", function (e) { if (e.target.closest("button")) e.preventDefault(); });
   $("cbTray").addEventListener("mousedown", function (e) { if (e.target.closest("button")) e.preventDefault(); });
   $("cbTray").addEventListener("click", function (e) {
@@ -1048,7 +1076,7 @@
   function ntEditOn() {
     if (!D) return;
     if (!TPW) { TGO = "notice"; $("tlock").classList.add("over-lock"); openModal("tlock"); setTimeout(function () { $("tpw").focus(); }, 60); return; }
-    noticeBigDraw(); $("noticeBig").classList.add("on");
+    ntFontsLoad(); noticeBigDraw(); $("noticeBig").classList.add("on");
     NTE.on = true; NTE.last = D.notice ? ntLines(D.notice.text).join("\n") : "";
     var ol = $("ntbList");
     if (!NTE.last) ol.innerHTML = "<li><br></li>";
@@ -1113,7 +1141,7 @@
     if (t.dataset.ntd) { NT.d = t.dataset.ntd; drawDrawer(); return; }
     if (t.dataset.ntm) { var a = new Date(NT.d.slice(0, 7) + "-15T12:00:00"); a.setMonth(a.getMonth() + Number(t.dataset.ntm)); NT.d = a.getFullYear() + "-" + pad(a.getMonth() + 1) + "-01"; drawDrawer(); return; }
     if (t.id === "ntUndo") { delete NT.drafts[NT.d]; drawDrawer(); return; }
-    if (t.id === "ntBig") { try { if (TOP && !TOP.closed) { TOP.noticeBigDraw(); TOP.$("noticeBig").classList.add("on"); toast("칠판에 알림장을 크게 띄웠어요"); return; } } catch (x) {} noticeBigDraw(); $("noticeBig").classList.add("on"); return; }
+    if (t.id === "ntBig") { try { if (TOP && !TOP.closed) { TOP.ntFontsLoad(); TOP.noticeBigDraw(); TOP.$("noticeBig").classList.add("on"); toast("칠판에 알림장을 크게 띄웠어요"); return; } } catch (x) {} noticeBigDraw(); $("noticeBig").classList.add("on"); return; }
     if (t.id === "ntSave" || t.id === "ntDel") {
       var d = NT.d, m = d.slice(0, 7), text = t.id === "ntDel" ? "" : ntLines($("ntText").value).join("\n");
       if (t.id === "ntDel" && !t.classList.contains("sure")) { t.classList.add("sure"); t.textContent = "한 번 더 누르면 지워요"; setTimeout(function () { if (t.isConnected) { t.classList.remove("sure"); t.textContent = "이 날 알림장 지우기"; } }, 4000); return; }
@@ -2105,13 +2133,15 @@
       var seen = {};
       return WH.text.split(/[\n,]/).map(function (x) { return x.trim(); }).filter(String).filter(function (x) { seen[x] = (seen[x] || 0) + 1; return seen[x] > (WH.outT[x] || 0); });
     }
-    return D.students.filter(function (x) { return !WH.out[x.no] && (WH.src === "class" || WH.sel[x.no]); }).map(label);
+    return D.students.filter(function (x) { return !WH.out[x.no] && (WH.src === "class" || (WH.src === "boy" && x.sex === "남") || (WH.src === "girl" && x.sex === "여") || (WH.src === "pick" && WH.sel[x.no])); }).map(label);
   }
+  function sexCount(sx) { return D.students.filter(function (x) { return x.sex === sx; }).length; }
   function whSegs() { var segs = [], at = {}; whRaw().forEach(function (x) { if (at[x] == null) { at[x] = segs.length; segs.push({ t: x, w: 0 }); } segs[at[x]].w++; }); return segs; }
   function wheelTool() {
     var pick = WH.src === "pick";
     $("tbb").innerHTML = '<div class="wheelbox"><div class="wheelwrap"><canvas id="whCv"></canvas><span class="ptr"></span></div><div>' +
-      '<div class="tbar">' + [["class", "우리반 모두"], ["pick", "골라서"], ["custom", "직접 적기"]].map(function (x) { return '<button class="chip' + (WH.src === x[0] ? " on" : "") + '" data-wsrc="' + x[0] + '">' + x[1] + "</button>"; }).join("") + "</div>" +
+      '<div class="tbar">' + [["class", "우리반 모두"], ["boy", "남학생"], ["girl", "여학생"], ["pick", "골라서"], ["custom", "직접 적기"]].map(function (x) { return '<button class="chip' + (WH.src === x[0] ? " on" : "") + '" data-wsrc="' + x[0] + '">' + x[1] + (x[0] === "boy" || x[0] === "girl" ? ' <small class="num">' + sexCount(x[0] === "boy" ? "남" : "여") + "</small>" : "") + "</button>"; }).join("") + "</div>" +
+      ((WH.src === "boy" || WH.src === "girl") && !sexCount(WH.src === "boy" ? "남" : "여") ? '<p class="hint" style="margin-top:6px">시트 <b>학생</b> 탭의 <b>성별</b> 칸에 남 · 여를 적으면 따로 돌릴 수 있어요.</p>' : "") +
       (pick ? pickerHTML(WH.sel, "wh") : "") +
       (WH.src === "custom" ? '<textarea class="field" id="whText" placeholder="한 줄에 하나씩">' + esc(WH.text) + '</textarea><p class="hint" style="margin-top:4px">같은 말을 여러 번 적으면 그만큼 칸이 커져요 (예: 야호 2번 → 2칸)</p>' : "") +
       '<div class="tbar" style="margin-top:10px"><button class="chip' + (WH.drop ? " on" : "") + '" id="whDrop">뽑힌 칸 빼기</button><button class="chip" id="whReset">처음부터</button></div>' +
@@ -2131,7 +2161,7 @@
       x.font = "700 " + Math.max(11, Math.min(30, R * seg * .5, R / Math.max(4, sg.t.length) * 1.4)) + "px Pretendard Variable, sans-serif"; x.fillText(sg.t + (sg.w > 1 ? " ×" + sg.w : ""), R - 14, 0); x.restore();
       a += seg;
     });
-    if (!segs.length) { x.fillStyle = "#9a93c0"; x.textAlign = "center"; x.font = "700 18px sans-serif"; x.fillText(WH.src === "pick" ? "학생을 골라 주세요" : "칸이 없어요", 0, 0); }
+    if (!segs.length) { x.fillStyle = "#9a93c0"; x.textAlign = "center"; x.font = "700 18px sans-serif"; x.fillText(WH.src === "pick" ? "학생을 골라 주세요" : (WH.src === "boy" || WH.src === "girl") && !sexCount(WH.src === "boy" ? "남" : "여") ? "성별을 먼저 적어 주세요" : "칸이 없어요", 0, 0); }
     x.beginPath(); x.arc(0, 0, R * .13, 0, Math.PI * 2); x.fillStyle = "#fff"; x.fill(); x.lineWidth = 5; x.strokeStyle = "#46336e"; x.stroke();
   }
   $("tbb").addEventListener("click", function (e) {
@@ -2159,21 +2189,23 @@
   };
 
   // 발표 뽑기 (크게) ------------------------------------------------------------
-  var PK = { k: 1, last: [] };
+  var PK = { k: 1, last: [], sex: "" };
   function pickTool() { pickDraw(); }
   function pickDraw() {
     var left = D.students.length - (PEX ? picked().length : 0);
-    $("tbb").innerHTML = '<div class="tbar"><span class="lab">한 번에</span>' + stepper("pk", PK.k + "명") + '<button class="chip' + (PEX ? " on" : "") + '" id="pkEx">뽑힌 번호 빼기</button><button class="chip" id="pkReset">처음부터</button><span class="hint">' + (PEX ? left + "명 남음" : "모두 중에서") + "</span></div>" +
+    $("tbb").innerHTML = '<div class="tbar"><span class="lab">누구 중에서</span>' + [["", "모두"], ["남", "남학생"], ["여", "여학생"]].map(function (x) { return '<button class="chip' + (PK.sex === x[0] ? " on" : "") + '" data-pksex="' + x[0] + '">' + x[1] + "</button>"; }).join("") + '</div><div class="tbar"><span class="lab">한 번에</span>' + stepper("pk", PK.k + "명") + '<button class="chip' + (PEX ? " on" : "") + '" id="pkEx">뽑힌 번호 빼기</button><button class="chip" id="pkReset">처음부터</button><span class="hint">' + (PEX ? left + "명 남음" : "모두 중에서") + "</span></div>" +
       '<div class="bigpick"><div class="slots3" id="pkSlots">' + Array.apply(null, Array(PK.k)).map(function (_, i) { var s = PK.last[i] ? student(PK.last[i]) : null;
         return '<div class="slotc' + (s ? " win" : "") + '"><span class="n jua num">' + (s ? (nameBig(s) ? "" : s.no) : "?") + '</span><span class="nm"' + (s && nameBig(s) ? ' style="font-size:clamp(34px,4.4vw,64px)"' : "") + ">" + (s ? esc(showMode() === "no" ? "" : s.name) + (showMode() === "nb" ? "<br><small>" + s.no + "번</small>" : "") : "") + "</span></div>"; }).join("") + "</div>" +
       '<div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center"><button class="btn jua" id="pkGo" style="padding:16px 46px; font-size:26px; background:linear-gradient(135deg,#e0b341,#b3831f)">뽑기</button>' +
       (PK.last.length ? '<button class="btn ghost" id="pkTalk">' + ico("hand") + "뽑힌 친구 발표 +1</button>" : "") + "</div></div>";
   }
+  $("tbb").addEventListener("click", function (e) { if (TOOL !== "pick") return; var px = e.target.closest("[data-pksex]"); if (px) { PK.sex = px.dataset.pksex; PK.last = []; pickDraw(); } });
   TOOLACT.pkEx = function () { PEX = !PEX; ls("classdesk-pickex", PEX ? "1" : "0"); pickDraw(); drawPick(); };
   TOOLACT.pkReset = function () { ls(pickKey(), "[]"); PK.last = []; pickDraw(); drawPick(); };
   TOOLACT.pkGo = function () {
-    var all = D.students.map(function (s) { return s.no; }), done = picked(), pool = shuffle(PEX ? all.filter(function (n) { return done.indexOf(n) < 0; }) : all);
-    if (!pool.length) { toast("모두 한 번씩 뽑혔어요. [처음부터]를 눌러요"); return; }
+    if (PK.sex && !sexCount(PK.sex)) { toast("시트 학생 탭의 성별 칸에 남 · 여를 먼저 적어 주세요"); return; }
+    var all = D.students.filter(function (s) { return !PK.sex || s.sex === PK.sex; }).map(function (s) { return s.no; }), done = picked(), pool = shuffle(PEX ? all.filter(function (n) { return done.indexOf(n) < 0; }) : all);
+    if (!pool.length) { toast((PK.sex ? PK.sex + "학생은 " : "") + "모두 한 번씩 뽑혔어요. [처음부터]를 눌러요"); return; }
     var win = pool.slice(0, PK.k), k = 0, steps = REDUCE ? 1 : 20;
     PK.last = []; pickDraw();
     var cards = document.querySelectorAll("#pkSlots .slotc"); cards.forEach(function (c) { c.classList.add("roll"); });

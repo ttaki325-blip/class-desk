@@ -25,7 +25,7 @@ const FEEDBACK_URL = 'https://script.google.com/macros/s/AKfycbz6lqEJfLAdC_6Flpn
 // 사람이 적거나 앱이 한 줄씩 쌓는 탭 (머리글 고정)
 const TABS = {
   '설정':      ['항목', '값', '설명'],
-  '학생':      ['번호', '이름', '1인 1역', '사용', '생일'],
+  '학생':      ['번호', '이름', '1인 1역', '사용', '생일', '성별'],
   '계정':      ['번호', '이름', '아이톡톡 아이디', '아이톡톡 비밀번호', '아이톡톡 힌트'],   // 실제 머리글은 설정 '계정 종류'를 따라 저절로 (head_). 비밀번호는 선생님만, 화면엔 아이디 · 힌트만
   '기초시간표':  ['교시', '시각', '월', '화', '수', '목', '금'],
   '시간표변경':  ['날짜', '1교시', '2교시', '3교시', '4교시', '5교시', '6교시', '7교시'],
@@ -63,7 +63,7 @@ const RAW = ['기록', '감정', '온도계'];   // 앱이 쓰는 원본 기록 
 const KINDS = { '우유': '#dbeafe', '다했어요': '#dcfce7', '1인1역': '#fef3c7', '발표': '#ede9fe' };
 const LIGHTS = { '초록': '#d1fae5', '노랑': '#fef3c7', '빨강': '#fee2e2' };
 const WIDTHS = {
-  '설정': [130, 320, 440], '학생': [60, 110, 160, 60, 80], '계정': [60, 100],
+  '설정': [130, 320, 440], '학생': [60, 110, 160, 60, 80, 60], '계정': [60, 100],
   '기초시간표': [70, 120, 90, 90, 90, 90, 90], '시간표변경': [110, 80, 80, 80, 80, 80, 80, 80], '일정': [110, 220, 80],
   '명언': [460, 140], '할일': [60, 110, 320, 70], '기록': [140, 110, 80, 60, 90, 220], '온도계': [140, 110, 60, 200, 60],
   '쪽지': [60, 140, 110, 360], '감정': [140, 110, 60, 90, 70, 90, 260],
@@ -71,7 +71,7 @@ const WIDTHS = {
   '학생별': [60, 90, 70, 80, 80, 70, 80, 100, 90, 90], '날짜별': [110, 80, 100, 100, 80, 60, 60, 60, 90],
 };
 const ALIGN = {   // 칸마다 정렬 (polish_)
-  '설정': 'lll', '학생': 'cclcc', '계정': 'cc', '기초시간표': 'ccccccc', '시간표변경': 'cccccccc', '일정': 'clc', '명언': 'll',
+  '설정': 'lll', '학생': 'cclccc', '계정': 'cc', '기초시간표': 'ccccccc', '시간표변경': 'cccccccc', '일정': 'clc', '명언': 'll',
   '할일': 'cclc', '쪽지': 'cccl', '선생님노트': 'cccccl', '수업계획': 'ccclllllll', '알림장': 'clc', '모둠': 'cccc', '출결': 'cccccclc',
   '학생별': 'clcccccccc', '날짜별': 'ccccccccc', '기록': 'cccccl', '감정': 'ccccccl', '온도계': 'ccclc',
 };
@@ -99,6 +99,7 @@ function doGet(e) {
 
 const SAMPLE_NAMES = ['김하늘', '이도윤', '박서연', '최민준', '정하은', '강지호', '조수아', '윤서준', '장예린', '임건우', '한지민', '오시우', '서유나',
   '신동현', '권다인', '황준서', '안채원', '송민재', '류아린', '전우진', '홍서아', '고태윤', '문하린', '양지안', '배은호'];
+const SAMPLE_SEX = ['여', '남', '여', '남', '여', '남', '여', '남', '여', '남', '여', '남', '여', '남', '여', '남', '여', '남', '여', '남', '여', '남', '여', '여', '남'];
 const SAMPLE_ROLES = ['칠판 정리', '우유 당번', '급식 도우미', '화분 물 주기', '불 끄기', '창문 열고 닫기', '분리수거', '책꽂이 정리', '신발장 정리',
   '사물함 점검', '학급문고 정리', '컴퓨터 끄기', '지우개 털기', '알림장 확인', '출석 도우미', '보건 도우미', '체육 도구 정리', '미술 도구 정리',
   '우산꽂이 정리', '바닥 점검', '게시판 정리', '손소독제 채우기', '휴지 채우기', '학습지 나눔이', '시간표 확인'];
@@ -138,7 +139,7 @@ function samples_(today) {
       ['배치', '', '화면 꾸미기에서 저장한 카드 배치. 직접 고치지 마세요'],
       ['자리 저장', '', '자리 뽑기에서 저장한 배치. 직접 고치지 마세요'],
     ],
-    '학생': SAMPLE_NAMES.map(function (n, i) { return [i + 1, n, SAMPLE_ROLES[i], '예', i ? pad(i % 12 + 1) + '-' + pad(i * 7 % 28 + 1) : today.slice(5)]; }),
+    '학생': SAMPLE_NAMES.map(function (n, i) { return [i + 1, n, SAMPLE_ROLES[i], '예', i ? pad(i % 12 + 1) + '-' + pad(i * 7 % 28 + 1) : today.slice(5), SAMPLE_SEX[i] || '']; }),
     '계정': SAMPLE_NAMES.map(function (n, i) { return [i + 1, n, 'student' + (i + 1) + '@gne.go.kr', 'Dream' + (1000 + i * 373 % 9000) + '!', HINT_ASK]; }),
     '기초시간표': SAMPLE_TT,
     '시간표변경': [],
@@ -163,14 +164,14 @@ function samples_(today) {
 // ── 처음 한 번: 탭 · 머리글 · 예시 · 서식. 옛 시트에는 빠진 탭 · 항목만 더한다 ──────
 // 탭 만들기는 한 번에 한 곳에서만 (웹 앱 창과 '처음 상태로 다시 만들기'가 동시에 같은 탭을 만들지 않게)
 function setup() {
-  if (CacheService.getScriptCache().get('setup-v4')) return;
+  if (CacheService.getScriptCache().get('setup-v5')) return;
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) return;
   try { setup_(); } finally { lock.releaseLock(); }
 }
 function setup_() {
   const cache = CacheService.getScriptCache();
-  if (cache.get('setup-v4')) return;
+  if (cache.get('setup-v5')) return;
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const have = {};
   ss.getSheets().forEach(function (sh) { have[sh.getName()] = true; });
@@ -207,7 +208,7 @@ function setup_() {
     const first = ss.getSheetByName('시트1') || ss.getSheetByName('Sheet1');
     if (first && first.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(first);
   }
-  cache.put('setup-v4', '1', 600);
+  cache.put('setup-v5', '1', 600);
 }
 
 // 설정 탭 '설명' 칸은 앱이 쓰는 안내 글 — 코드가 바뀌면 옛 설명(예: 편지함)을 새 설명으로 맞춘다. 선생님이 적는 '값' 칸은 건드리지 않는다
@@ -248,6 +249,8 @@ function migrate_() {
   if (st) {
     const head = st.getRange(1, 1, 1, Math.max(4, st.getLastColumn())).getValues()[0];
     if (head.indexOf('생일') < 0) { st.getRange(1, 5, 1, 1).setValues([['생일']]); decorate_(st, '학생'); }
+    const h2 = st.getRange(1, 1, 1, Math.max(5, st.getLastColumn())).getValues()[0];
+    if (h2.indexOf('성별') < 0) { st.getRange(1, 6, 1, 1).setValues([['성별']]); decorate_(st, '학생'); }
   }
 }
 
@@ -364,7 +367,7 @@ function decorate_(sh, name) {
   };
   if (name === '설정') { sh.getRange('A2:A').setFontWeight('bold').setFontColor('#46336e'); sh.getRange('C2:C').setFontColor('#8a87a0').setFontSize(9);
     sh.getRange(2, 2, Math.max(2, sh.getLastRow()) - 1, 1).setBackground(tint_(color, .9)).setFontWeight('bold'); }   // 값 칸 = 선생님이 적는 곳
-  if (name === '학생') { center('A2:A'); center('D2:E'); sh.getRange('A2:A').setFontWeight('bold'); dv_(sh, 'D2:D', yesNo); }
+  if (name === '학생') { center('A2:A'); center('D2:F'); sh.getRange('A2:A').setFontWeight('bold'); dv_(sh, 'D2:D', yesNo); try { dv_(sh, 'F2:F', SpreadsheetApp.newDataValidation().requireValueInList(['남', '여'], true).setAllowInvalid(true).build()); } catch (e) {} }
   if (name === '계정') { center('A2:B'); sh.getRange('A2:B').setFontWeight('bold');
     for (let c = 3; c <= n; c++) {
       const k = (c - 3) % 3;   // 0 아이디 · 1 비밀번호(선생님만) · 2 힌트(학생 화면에 보임)
@@ -768,8 +771,8 @@ function syncTabs_(force) {
   if (st) {
     const have = {};
     st.getDataRange().getValues().slice(1).forEach(function (r) { if (Number(r[0])) have[Number(r[0])] = 1; });
-    const add = []; for (let i = 1; i <= n; i++) if (!have[i]) add.push([i, '', '', '예', '']);
-    if (add.length) st.getRange(st.getLastRow() + 1, 1, add.length, 5).setValues(add);
+    const add = []; for (let i = 1; i <= n; i++) if (!have[i]) add.push([i, '', '', '예', '', '']);
+    if (add.length) st.getRange(st.getLastRow() + 1, 1, add.length, 6).setValues(add);
   }
   if (!ac) return;
   const v = ac.getDataRange().getValues(), old = v[0].map(String), want = head_('계정');
@@ -805,7 +808,7 @@ function syncTabs_(force) {
 }
 function refreshAll() { _set = null; updateSummary(true); SpreadsheetApp.getActiveSpreadsheet().toast('체크표 · 학생별 · 날짜별을 새로 그렸어요.', '앱 설정', 4); }
 function restyle() {
-  CacheService.getScriptCache().remove('setup-v4'); setup();
+  CacheService.getScriptCache().remove('setup-v5'); setup();
   Object.keys(TABS).forEach(function (name) { if (sheet_(name)) decorate_(sheet_(name), name); });
   orderTabs_(); updateSummary(true);
 }
@@ -833,7 +836,7 @@ function resetAll() {
     tmp.showSheet(); ss.setActiveSheet(tmp);
     ss.getSheets().forEach(function (sh) { if (sh.getSheetId() !== tmp.getSheetId()) ss.deleteSheet(sh); });
     _set = null;
-    ['setup-v4', 'weather'].concat(ORDER.map(function (n) { return 'w-' + n; })).forEach(function (k) { cache.remove(k); });
+    ['setup-v5', 'weather'].concat(ORDER.map(function (n) { return 'w-' + n; })).forEach(function (k) { cache.remove(k); });
     setup_();
     ss.setActiveSheet(ss.getSheetByName('설정'));
     const left = ss.getSheetByName('잠깐');   // setup_ 이 이미 지웠을 수도 있다
@@ -882,7 +885,9 @@ function removeSamples_() {
   let cleared = 0;
   for (let i = 1; i < sv.length; i++) {
     const no = Number(sv[i][0]), ex = smp['학생'][no - 1]; if (!ex) continue;
+    const jn = ci('이름'), wasSample = jn >= 0 && text_(sv[i][jn], '이름') === String(ex[1]);
     [['이름', 1], ['1인 1역', 2], ['생일', 4]].forEach(function (p) { const j = ci(p[0]); if (j >= 0 && text_(sv[i][j], p[0]) === String(ex[p[1]])) { sv[i][j] = ''; cleared++; } });
+    const js = ci('성별'); if (wasSample && js >= 0 && String(sv[i][js]) === String(ex[5] || '')) { sv[i][js] = ''; cleared++; }
   }
   if (cleared) { st.getRange(1, 1, sv.length, sh0.length).setValues(sv); out.push('학생 예시 ' + cleared + '칸'); }
   // 기초시간표가 예시 그대로면 과목만 비운다 (교시 · 시각은 남김)
@@ -941,7 +946,7 @@ function getAll(code) {
   setup();
   const s = settings_(), today = today_(), n = studentCount_();
   const names = studentMap_(), students = [], md = today.slice(5);
-  for (let i = 1; i <= n; i++) students.push({ no: i, name: names[i] ? names[i].name : '', role: names[i] ? names[i].role : '' });
+  for (let i = 1; i <= n; i++) students.push({ no: i, name: names[i] ? names[i].name : '', role: names[i] ? names[i].role : '', sex: names[i] ? names[i].sex : '' });
   const act = String(s['지금 활동'] || '');
   const milk = {}, done = {}, role = {}, talk = {}, feel = {};
   tail_('기록', 1500).forEach(function (r) {
@@ -1513,9 +1518,10 @@ function setSetting_(key, value) {
 function mainColor_() { const c = String(settings_()['대표 색'] || '').trim(); return /^#[0-9a-fA-F]{6}$/.test(c) ? c : '#7566c0'; }
 function list_(key, def) { return String(settings_()[key] || def).split(',').map(function (x) { return x.trim(); }).filter(String); }
 function studentCount_() { return Math.max(1, Math.min(40, Number(settings_()['학생 수']) || 25)); }
+function sex_(v) { v = String(v || '').trim().toLowerCase(); return /^(남|m|boy|b)/.test(v) ? '남' : /^(여|f|girl|g|w)/.test(v) ? '여' : ''; }
 function studentMap_() {
   const m = {};
-  rows_('학생').forEach(function (r) { if (r['사용'] !== '아니오' && Number(r['번호'])) m[Number(r['번호'])] = { name: r['이름'], role: r['1인 1역'], bday: r['생일'] || '' }; });
+  rows_('학생').forEach(function (r) { if (r['사용'] !== '아니오' && Number(r['번호'])) m[Number(r['번호'])] = { name: r['이름'], role: r['1인 1역'], bday: r['생일'] || '', sex: sex_(r['성별']) }; });
   return m;
 }
 // '3/5', '03-05', '2014-03-05', '3월 5일' → '03-05'
