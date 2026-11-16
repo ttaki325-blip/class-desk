@@ -123,7 +123,7 @@
   var READY = null, READY_OK = null; READY = new Promise(function (ok) { READY_OK = ok; });
   var CHAIN = Promise.resolve();
   function inChain(job) { var p = CHAIN.then(job); CHAIN = p.catch(function () {}); return p; }
-  var READS = { getAll: 1, sync: 1, teacher: 1, attendGet: 1, monthData: 1, getAccount: 1, checkTeacher: 1, getWeather: 1, shareInfo: 1, mailPw: 1, getMeal: 1, searchSchool: 1, lessonWeek: 1, lessonFind: 1, noticeList: 1, nameList: 1 };
+  var READS = { getAll: 1, sync: 1, teacher: 1, attendGet: 1, monthData: 1, getAccount: 1, checkTeacher: 1, getWeather: 1, shareInfo: 1, mailPw: 1, getMeal: 1, searchSchool: 1, lessonWeek: 1, lessonFind: 1, noticeList: 1, nameList: 1, morningReport: 1 };
   var LOGS = { tap: 1, present: 1, undoPresent: 1, feel: 1, thermo: 1, thermoReset: 1 };   // 앱만 쓰는 기록 탭 → 다시 읽을 필요 없음
   var EDITABLE = ['설정', '월별 보기', '학생', '계정', '기초시간표', '시간표변경', '일정', '명언', '할일', '쪽지', '선생님노트', '모둠', '출결', '수업계획', '알림장'];
   var LAST_FULL = 0, LAST_FRESH = 0, TICKETS = [], DIRTY = false, FT = null, FIRST_UNSENT = 0, FAILS = 0, STATE = 'ok';

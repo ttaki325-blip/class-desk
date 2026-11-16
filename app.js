@@ -121,11 +121,29 @@
     clearTimeout(p._h); p._h = setTimeout(function () { p.classList.remove("on"); }, 2700);
     if (D && D.settings["타이머 소리"] !== "아니오") chime([523, 659, 784, 1047]);
   }
-  function chime(freqs) {
-    try { var a = new (window.AudioContext || window.webkitAudioContext)(); (freqs || [659, 784, 988, 1319]).forEach(function (f, i) {
-      var o = a.createOscillator(), g = a.createGain(), t = a.currentTime + i * .2; o.type = "sine"; o.frequency.value = f; o.connect(g); g.connect(a.destination);
-      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.22, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .7); o.start(t); o.stop(t + .75); }); } catch (e) {}
+  // 소리: 한 오디오 판 + 압축기로 크게 (교실 뒤까지 들리게)
+  var SNDC = null;
+  function sndOut() {
+    if (!SNDC) { var a = new (window.AudioContext || window.webkitAudioContext)(), cp = a.createDynamicsCompressor(), mg = a.createGain(); cp.threshold.value = -18; cp.knee.value = 10; cp.ratio.value = 6; mg.gain.value = 1.6; cp.connect(mg); mg.connect(a.destination); SNDC = { a: a, out: cp }; }
+    if (SNDC.a.state === "suspended") SNDC.a.resume();
+    return SNDC;
   }
+  function chime(freqs, loud) {
+    try { var S = sndOut(), a = S.a, peak = loud ? .95 : .5; (freqs || [659, 784, 988, 1319]).forEach(function (f, i) {
+      [["triangle", 1], ["sine", 2]].forEach(function (w) {
+        var o = a.createOscillator(), g = a.createGain(), t = a.currentTime + i * (loud ? .26 : .2); o.type = w[0]; o.frequency.value = f * w[1]; o.connect(g); g.connect(S.out);
+        var pk = w[1] === 1 ? peak : peak * .3; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(pk, t + .015); g.gain.exponentialRampToValueAtTime(.0001, t + (loud ? 1.1 : .7)); o.start(t); o.stop(t + (loud ? 1.15 : .75)); }); }); } catch (e) {}
+  }
+  // 말로 알려 주기 (한국어 목소리, 가장 크게)
+  function say(text) {
+    try {
+      var ss = window.speechSynthesis; if (!ss) return; ss.cancel();
+      var u = new SpeechSynthesisUtterance(text); u.lang = "ko-KR"; u.volume = 1; u.rate = .95; u.pitch = 1.05;
+      var v = ss.getVoices().filter(function (x) { return /^ko/i.test(x.lang); }); if (v.length) u.voice = v.filter(function (x) { return /Google|Heami|SunHi|Yuna/i.test(x.name); })[0] || v[0];
+      ss.speak(u);
+    } catch (e) {}
+  }
+  try { if (window.speechSynthesis) speechSynthesis.getVoices(); } catch (e) {}
 
   // ── 저장 중 표시: 1초쯤 빙글빙글 → 시트에 적히면 체크 → 스르륵 (화면을 막지 않는다) ──
   var FL = null, FLT = null, BHIDE = null;
@@ -678,9 +696,13 @@
     $("bigS").textContent = TM.run ? hm(new Date(TM.end)) + "에 끝나요" : TM.left < TM.total ? "잠깐 멈춤" : "멈춰 있어요";
     $("bGo").textContent = $("tGo").textContent; document.querySelectorAll("[data-bstep]").forEach(function (b) { b.disabled = TM.run; b.style.opacity = TM.run ? .45 : ""; });
   }
-  setInterval(function () { if (!TM.run) return; TM.left = Math.max(0, Math.ceil((TM.end - Date.now()) / 1000)); tmDraw(); if (TM.left <= 0) tmDone(); }, 250);
-  $("tGo").onclick = function () { if (TM.run) { TM.left = Math.max(1, Math.ceil((TM.end - Date.now()) / 1000)); TM.run = false; } else { TM.end = Date.now() + TM.left * 1000; TM.run = true; } tmSave(); tmDraw(); };
-  $("tReset").onclick = function () { TM.run = false; TM.left = TM.total; tmSave(); tmDraw(); };
+  setInterval(function () {
+    if (!TM.run) return; TM.left = Math.max(0, Math.ceil((TM.end - Date.now()) / 1000)); tmDraw();
+    if (TM.total > 75 && TM.left <= 60 && TM.left > 50 && !TM.warned) { TM.warned = true; tmSave(); if (chimeOn()) { chime([880, 1175], true); setTimeout(function () { say("1분 남았습니다."); }, 700); } toast("1분 남았어요"); }
+    if (TM.left <= 0) tmDone();
+  }, 250);
+  $("tGo").onclick = function () { sndOut(); if (TM.left > 60) TM.warned = false; if (TM.run) { TM.left = Math.max(1, Math.ceil((TM.end - Date.now()) / 1000)); TM.run = false; } else { TM.end = Date.now() + TM.left * 1000; TM.run = true; } tmSave(); tmDraw(); };
+  $("tReset").onclick = function () { TM.run = false; TM.left = TM.total; TM.warned = false; tmSave(); tmDraw(); };
   function openClock() { if (EDIT) return; $("bigClock").classList.add("on"); tickClock(); nowPeriod(); }
   $("clockBig").onclick = function (e) { e.stopPropagation(); openClock(); };
   document.querySelector(".c-clock").addEventListener("click", function (e) { if (!EDIT && !e.target.closest(".tools")) openClock(); });
@@ -693,8 +715,8 @@
   document.addEventListener("click", function (e) { var b = e.target.closest("[data-bstep]"); if (b && !TM.run) tmSet(TM.total + Number(b.dataset.bstep)); });
   $("bigClose").onclick = function () { $("bigTimer").classList.remove("on"); };
   function tmDone() {
-    TM.run = false; TM.left = TM.total; tmSave(); tmDraw();
-    if (chimeOn()) { chime(); setTimeout(chime, 1200); }
+    TM.run = false; TM.left = TM.total; TM.warned = false; tmSave(); tmDraw();
+    if (chimeOn()) { var al = [1047, 1319, 1568, 2093]; chime(al, true); setTimeout(function () { chime(al, true); }, 1300); setTimeout(function () { chime(al, true); }, 2600); setTimeout(function () { say("시간이 다 됐습니다."); }, 3900); }
     party("시간이 다 됐어요!");
   }
   function tmResume() { if (TM.run && Date.now() >= TM.end) { TM.run = false; TM.left = TM.total; tmSave(); } tmDraw(); }
@@ -1258,6 +1280,41 @@
     }
   });
 
+
+  // ── 아침 온도계 소식: 평일 아침 8시(그 뒤 처음 켤 때)에 어제 결과를 크게 보여 준다 ──
+  var MORN_MSG = "";
+  function morningCheck(force) {
+    if (!D || TWIN) return;
+    var now = new Date(), m = now.getHours() * 60 + now.getMinutes(), wd = now.getDay();
+    if (!force && (wd === 0 || wd === 6 || m < 8 * 60 || m >= 13 * 60 || ls("classdesk-morning") === D.today)) return;
+    ls("classdesk-morning", D.today);
+    thermoTick(true);
+    setTimeout(function () { call("morningReport", [], showMorning, true); }, 1500);
+  }
+  function showMorning(r) {
+    if (!r || !r.day) return;
+    var when = r.yesterday ? "어제" : "지난 " + r.wd + "요일", items = [], speak = [];
+    if (r.noName) {
+      if (!r.disrupt && r.award > 0) { items.push(["up", "🌟", when + " 수업방해가 없어서 <b>" + r.award + "도</b> 올랐어요!"]); speak.push(when + " 수업방해가 없어서 학급 온도계가 " + r.award + "도 올랐습니다."); }
+      else if (r.disrupt) { items.push(["", "💪", (r.yesterday ? "어제는" : when + "은") + " 수업방해가 <b>" + r.disrupt + "번</b> 있어서 온도계가 오르지 않았어요. 오늘은 0번에 도전!"]); speak.push((r.yesterday ? "어제는" : when + "은") + " 수업방해가 " + r.disrupt + "번 있어서 온도계가 오르지 않았습니다. 오늘은 0번에 도전해 봐요."); }
+    }
+    r.weekly.forEach(function (w) { var pc = (/(\d+)%/.exec(w.why) || [])[1]; items.push(["up", "🧹", "1인 1역을 " + (pc ? pc + "%" : "") + " 해내서 <b>" + w.d + "도</b> 올랐어요!"]); speak.push("한 주 동안 1인 1역을 " + (pc ? pc + "퍼센트 " : "") + "해내서 " + w.d + "도 올랐습니다."); });
+    if (r.manual > 0) { items.push(["up", "👏", when + " 칭찬으로 <b>" + r.manual + "도</b> 올랐어요"]); speak.push("칭찬으로 " + r.manual + "도 올랐습니다."); }
+    r.got.forEach(function (g) { items.push(["gift", "🎁", "<b>" + g.at + "도 달성!</b> '" + esc(g.name) + "' 보상을 받아요!"]); speak.push(g.at + "도를 달성해서 " + g.name + " 보상을 받습니다!"); });
+    if (!items.length) return;
+    $("mornSub").textContent = mdText(D.today) + " · 학급 온도계 소식";
+    $("mornList").innerHTML = items.map(function (x) { return '<li class="' + x[0] + '"><i>' + x[1] + "</i><span>" + x[2] + "</span></li>"; }).join("");
+    $("mornTotal").textContent = r.total + "도";
+    $("mornNext").textContent = r.next ? "'" + r.next.name + "'까지 " + (r.next.at - r.total) + "도" : "";
+    MORN_MSG = "좋은 아침입니다. " + speak.join(" ") + " 지금 학급 온도계는 " + r.total + "도입니다." + (r.next ? " " + r.next.name + "까지 " + (r.next.at - r.total) + "도 남았습니다." : "");
+    openModal("mornM");
+    var p = center($("mornList")); if (items.some(function (x) { return x[0]; })) confetti(p[0], p[1], 40, ["#e76f7f", "#f4a261", "#e0b341", "#fff"]);
+    if (chimeOn()) chime([659, 784, 988]);
+  }
+  $("mornSay").onclick = function () { say(MORN_MSG); };
+  setInterval(function () { morningCheck(false); }, 30 * 1000);
+  setTimeout(function () { morningCheck(false); }, 9000);
+
   // 온도계 자동 규칙: 바탕화면 창이 몇 분마다 서버에 정산을 부탁한다 (같은 날 · 같은 주는 한 번만 오름)
   var THAUTO = 0;
   function thermoTick(force) {
@@ -1802,6 +1859,7 @@
     [function () { return onC("tlock"); }, function () { closeModal("tlock"); }],
     [function () { return onC("acctM"); }, function () { closeModal("acctM"); }],
     [function () { return onC("mealM"); }, function () { closeModal("mealM"); }],
+    [function () { return onC("mornM"); }, function () { closeModal("mornM"); }],
     [function () { return onC("atM"); }, function () { closeModal("atM"); }],
     [function () { return onC("bigClock"); }, function () { $("bigClock").classList.remove("on"); }],
     [function () { return onC("bigTimer"); }, function () { $("bigTimer").classList.remove("on"); }],
