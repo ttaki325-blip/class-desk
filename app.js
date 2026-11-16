@@ -517,7 +517,7 @@
   function label(s) { var m = showMode(); return m === "no" || !s.name ? s.no + "번" : m === "name" ? s.name : m === "nb" ? s.name + " " + s.no + "번" : s.no + "번 " + s.name; }
   function numHTML(s) {
     var m = showMode();
-    if (nameBig(s)) return '<span class="nm jua" style="font-size:min(30cqh,24cqw); color:inherit">' + esc(s.name) + "</span>" + (m === "nb" ? '<span class="rl num">' + s.no + "번</span>" : "");
+    if (nameBig(s)) return '<span class="nm nmbig jua" style="margin-top:0; font-size:min(52cqh,32cqw)">' + esc(s.name) + "</span>" + (m === "nb" ? '<span class="n2 jua num">' + s.no + "</span>" : "");
     if (m === "both" && s.name) return '<span class="n2 jua num">' + s.no + '</span><span class="nm nmbig jua">' + esc(s.name) + "</span>";
     return '<span class="n jua num">' + s.no + "</span>";
   }
