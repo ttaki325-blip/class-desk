@@ -442,18 +442,30 @@
 
   // 온도계
   var REASON = "";
+  var THLAST = null;
   function drawThermo() {
-    var T = D.thermo, pct = Math.max(0, Math.min(1, T.total / Math.max(1, T.goal)));
-    $("temp").innerHTML = T.total + "<small>도</small>"; $("goal").textContent = "목표 " + T.goal + "도까지 " + Math.max(0, T.goal - T.total) + "도 남았어요";
+    var T = D.thermo, pct = Math.max(0, Math.min(1, T.total / Math.max(1, T.goal))), RW = T.rewards || [];
+    var nx = RW.filter(function (r) { return r.at > T.total; })[0];
+    $("temp").innerHTML = T.total + "<small>도</small>";
+    $("goal").textContent = nx ? "'" + nx.name + "'까지 " + (nx.at - T.total) + "도 남았어요" : RW.length ? "모든 보상 달성! 정말 멋져요" : "목표 " + T.goal + "도까지 " + Math.max(0, T.goal - T.total) + "도 남았어요";
+    // 보상 단계: 받은 것 ✓ · 다음 것 강조
+    $("trw").innerHTML = RW.map(function (r) { var st = T.total >= r.at ? "ok" : r === nx ? "next" : ""; return '<li class="' + st + '"><b class="num">' + r.at + "°</b><span>" + esc(r.name) + "</span>" + (st === "ok" ? ico("check") : "") + "</li>"; }).join("");
+    var w = T.week, R = T.rules || {}, nm = Object.keys(D.marks.name || {}).length, au = [];
+    if (R.noName) au.push('<span class="' + (nm ? "bad" : "good") + '">오늘 이름 ' + nm + "명" + (nm ? "" : " · " + esc(R.cut) + " +" + R.noName + "°") + "</span>");
+    if (R.role && w) au.push('<span class="' + (w.days && w.pct >= w.need ? "good" : "") + '">이번 주 1인 1역 <b class="num">' + (w.days ? w.pct : 0) + "%</b>/" + w.need + "%</span>");
+    $("tauto").innerHTML = au.join("");
+    if (THLAST != null && !TWIN && T.total > THLAST) { var got = RW.filter(function (r) { return THLAST < r.at && T.total >= r.at; }); if (got.length) { var g = got[got.length - 1]; setTimeout(function () { party(g.at + "도 달성! 🎁 " + g.name); }, 700); } }
+    THLAST = T.total;
     $("thGoalB").textContent = Math.round(pct * 100) + "%";
     var top = 22, bot = 230, y = bot - (bot - top) * pct, ticks = "";
     for (var i = 0; i <= 10; i++) { var ty = bot - (bot - top) * i / 10; ticks += '<line x1="58" x2="' + (i % 5 ? 64 : 70) + '" y1="' + ty + '" y2="' + ty + '" stroke="#d9b9bf" stroke-width="2" stroke-linecap="round"/>'; }
     $("tsvg").innerHTML = '<defs><linearGradient id="mg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#f4a261"/><stop offset=".5" stop-color="#e76f7f"/><stop offset="1" stop-color="#c9364b"/></linearGradient></defs>' +
       '<rect x="30" y="12" width="24" height="232" rx="12" fill="#fff" stroke="#f0d3d8" stroke-width="3"/>' + ticks +
       '<rect id="merc" x="35" y="' + y + '" width="14" height="' + (bot + 16 - y) + '" rx="7" fill="url(#mg)" style="transition:all 1s cubic-bezier(.22,.61,.36,1)"/>' +
-      '<circle cx="42" cy="262" r="28" fill="url(#mg)" stroke="#fff" stroke-width="4"/><circle cx="34" cy="254" r="7" fill="rgba(255,255,255,.5)"/>';
+      '<circle cx="42" cy="262" r="28" fill="url(#mg)" stroke="#fff" stroke-width="4"/><circle cx="34" cy="254" r="7" fill="rgba(255,255,255,.5)"/>' +
+      RW.map(function (r) { var ry = bot - (bot - top) * Math.min(1, r.at / Math.max(1, T.goal)), ok = T.total >= r.at; return '<g><line x1="12" x2="30" y1="' + ry + '" y2="' + ry + '" stroke="' + (ok ? "#e0b341" : "#d9b9bf") + '" stroke-width="3" stroke-linecap="round"/><circle cx="10" cy="' + ry + '" r="6" fill="' + (ok ? "#e0b341" : "#fff") + '" stroke="' + (ok ? "#c99a22" : "#d9b9bf") + '" stroke-width="2"/></g>'; }).join("");
     $("reasons").innerHTML = D.praise.map(function (r) { return '<button class="chip' + (r === REASON ? " on" : "") + '" data-rs="' + esc(r) + '">' + esc(r) + "</button>"; }).join("");
-    $("tlog").innerHTML = T.recent.slice(0, 3).map(function (r) { return '<li><b class="' + (r.d >= 0 ? "pl" : "mi") + '">' + (r.d > 0 ? "+" : "") + r.d + "</b><span>" + esc(r.why || "") + "</span></li>"; }).join("");
+    $("tlog").innerHTML = T.recent.slice(0, 2).map(function (r) { return '<li><b class="' + (r.d >= 0 ? "pl" : "mi") + '">' + (r.d > 0 ? "+" : "") + r.d + "</b><span>" + esc(r.why || "") + "</span></li>"; }).join("");
   }
 
   function drawTodos() {
@@ -478,6 +490,7 @@
   var MODES = [
     { id: "milk", name: "우유 다 먹었어요", ic: "milk", c: "#2e77c8" }, { id: "done", name: "다 했어요", ic: "done", c: "#35915a" },
     { id: "role", name: "1인 1역", ic: "role", c: "#b3831f" }, { id: "talk", name: "발표", ic: "hand", c: "#7566c0" },
+    { id: "name", name: "이름 적기", ic: "note", c: "#c9364b" },
     { id: "acct", name: "내 계정", ic: "key", c: "#2b968f" } ];
   // 이름 보이기: 번호와 이름 / 이름과 번호 / 번호만 / 이름만
   var NAMEOPT = ["번호와 이름", "이름과 번호", "번호만", "이름만"];
@@ -501,6 +514,7 @@
       MODE === "done" ? (TPW ? '<input class="act-in" id="actIn" maxlength="40" value="' + esc(mk.act || "") + '" placeholder="지금 활동 이름" aria-label="지금 활동 이름 (고치고 Enter)" title="고치고 Enter를 누르면 바뀌어요">' :
         '<span class="act">' + ico("note") + esc(mk.act || "지금 활동") + "</span>") + '<span>다 한 친구 <b class="num">' + cnt + "</b> / " + n + '</span><span class="pbar"><i style="width:' + Math.round(cnt / n * 100) + '%"></i></span>' :
       MODE === "role" ? '<span>역할 다 한 친구 <b class="num">' + cnt + "</b> / " + n + '</span><span class="pbar"><i style="width:' + Math.round(cnt / n * 100) + '%"></i></span>' :
+      MODE === "name" ? (function () { var k = Object.keys(mk.name || {}).length, R = D.thermo.rules || {}; return '<span>오늘 이름 적힌 친구 <b class="num">' + k + "</b>명</span>" + (R.noName ? '<span class="nmhint">' + (k ? "내일은 아무도 없이 지내 봐요!" : "이대로 " + esc(R.cut || "14:30") + "까지 가면 온도계 +" + R.noName + "도") + "</span>" : "") + (TPW ? "" : '<span class="nmhint">적고 지우기는 선생님만</span>'); })() :
       MODE === "talk" ? '<span>오늘 발표 <b class="num">' + talkTotal + "</b>번 · 손 든 친구 <b class='num'>" + Object.keys(mk.talk).length + "</b>명</span>" :
       MODE === "feel" ? '<span>내 번호를 누르고 마음 색을 골라요 · 마음 나눈 친구 <b class="num">' + Object.keys(mk.feel || {}).length + "</b> / " + n + "</span>" :
       "<span>내 번호를 누르면 아이디와 비밀번호 힌트가 30초 동안 보여요</span>";
@@ -511,10 +525,10 @@
     $("panel").style.height = rows === 1 && innerWidth > 700 ? "clamp(170px,22vh,240px)" : "";
     $("nums").style.gridTemplateColumns = "repeat(" + Math.ceil(n / rows) + ",minmax(0,1fr))";
     $("nums").innerHTML = D.students.map(function (s) {
-      var on = MODE === "milk" ? mk.milk[s.no] : MODE === "done" ? mk.done[s.no] : MODE === "role" ? mk.role[s.no] : MODE === "feel" ? (mk.feel || {})[s.no] : 0, talk = mk.talk[s.no] || 0;
+      var on = MODE === "milk" ? mk.milk[s.no] : MODE === "done" ? mk.done[s.no] : MODE === "role" ? mk.role[s.no] : MODE === "name" ? (mk.name || {})[s.no] : MODE === "feel" ? (mk.feel || {})[s.no] : 0, talk = mk.talk[s.no] || 0;
       return '<button class="nb' + (on ? " on" : "") + '" data-no="' + s.no + '" aria-label="' + esc(label(s)) + '">' + numHTML(s) +
         (MODE === "role" && s.role ? '<span class="rl">' + esc(s.role) + "</span>" : "") +
-        (MODE === "talk" ? '<span class="stars num' + (talk ? " has" : "") + '">' + talk + "</span>" : '<span class="mark">' + ico(MODE === "feel" ? "heart" : "check") + "</span>") + "</button>";
+        (MODE === "talk" ? '<span class="stars num' + (talk ? " has" : "") + '">' + talk + "</span>" : '<span class="mark">' + ico(MODE === "feel" ? "heart" : MODE === "name" ? "x" : "check") + "</span>") + "</button>";
     }).join("");
   }
   document.addEventListener("click", function (e) {
@@ -533,6 +547,14 @@
     var s = student(no), who = no + "번" + (s.name ? " " + s.name : ""), mk = D.marks, n = D.students.length;
     el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
     if (MODE === "acct") return showAccount(no);
+    if (MODE === "name") {
+      if (needTeacher()) return;
+      var onN = !(mk.name || {})[no];
+      write("nameMark", [TPW, no], { busy: onN ? who + " 이름 적는 중" : who + " 이름 지우는 중", msg: onN ? who + " 이름을 적었어요" : who + " 이름을 지웠어요",
+        mut: function (d) { d.marks.name = d.marks.name || {}; if (onN) d.marks.name[no] = 1; else delete d.marks.name[no]; },
+        after: function (r) { if (r && r.undone) { toast("오늘 '이름 없는 날' +" + r.undone + "도를 되돌렸어요"); call("getAll", [], function () { syncState(); }, true); } } });
+      return;
+    }
     if (MODE === "talk") {
       write("present", [no], { busy: who + " 발표 기록 중", mut: function (d) { d.marks.talk[no] = (d.marks.talk[no] || 0) + 1; }, msg: who + " 발표 +1",
         undo: function () { write("undoPresent", [no], { busy: "되돌리는 중", mut: function (d) { d.marks.talk[no] = Math.max(0, (d.marks.talk[no] || 0) - 1); if (!d.marks.talk[no]) delete d.marks.talk[no]; }, msg: "되돌렸어요" }); } });
@@ -574,7 +596,7 @@
       var why = REASON || (dlt > 0 ? "칭찬" : ""), before = D.thermo.total, goal = D.thermo.goal;
       write("thermo", [dlt, why], { busy: "온도계 " + (dlt > 0 ? "+" : "") + dlt + "도" + (why ? " · " + why : ""),
         mut: function (d) { d.thermo.total = Math.max(0, d.thermo.total + dlt); d.thermo.recent.unshift({ t: nowStamp(), d: dlt, why: why }); },
-        fx: function () { var p = center($("tsvg")); if (dlt > 0) confetti(p[0], p[1] - 40, 24, ["#e76f7f", "#f4a261", "#fff"]); if (before < goal && before + dlt >= goal) party("학급 온도계 " + goal + "도 달성!"); } });
+        fx: function () { var p = center($("tsvg")); if (dlt > 0) confetti(p[0], p[1] - 40, 24, ["#e76f7f", "#f4a261", "#fff"]); } });
       REASON = "";
     }
   }
@@ -774,7 +796,7 @@
   document.addEventListener("pointerdown", function () { if (TPW) poke(); });
   if (TPW) teacherOn();
 
-  var DTABS = [["today", "오늘 한눈에", "eye"], ["note", "선생님 노트", "note"], ["lesson", "수업계획", "book"], ["notice", "알림장", "list"], ["tt", "시간표", "cal"], ["ev", "일정", "spark"], ["att", "출결", "check"], ["month", "월별 기록", "print"], ["layout", "화면 꾸미기", "grid"], ["feat", "기능 켜고 끄기", "eye"], ["set", "설정", "gear"], ["sheet", "시트 관리", "sheet"], ["safe", "보안 · 심의", "shield"]];
+  var DTABS = [["today", "오늘 한눈에", "eye"], ["note", "선생님 노트", "note"], ["lesson", "수업계획", "book"], ["notice", "알림장", "list"], ["thermo", "온도계", "thermo"], ["tt", "시간표", "cal"], ["ev", "일정", "spark"], ["att", "출결", "check"], ["month", "월별 기록", "print"], ["layout", "화면 꾸미기", "grid"], ["feat", "기능 켜고 끄기", "eye"], ["set", "설정", "gear"], ["sheet", "시트 관리", "sheet"], ["safe", "보안 · 심의", "shield"]];
   function openDrawer(tab) {
     DTAB = tab || DTAB; $("drawer").classList.add("on"); $("dback").classList.add("on"); var vv = (D && D.version) || ""; $("verTxt").textContent = (vv.match(/v[\d.]+$/) || [vv])[0]; $("verTxt").title = vv;
     $("dbody").innerHTML = '<p class="muted">시트에서 가져오는 중...</p>';
@@ -1154,6 +1176,63 @@
       drawDrawer(); return;
     }
   });
+
+  // ── 선생님 서랍 > 온도계: 자동 규칙 · 보상 단계 고치기 ──
+  var THE = null;   // 고치는 중인 값
+  function thermoPane() {
+    var T = D.thermo, R = T.rules || { noName: 5, cut: "14:30", rolePct: 80, role: 5 };
+    if (!THE) THE = { noName: R.noName, cut: R.cut, rolePct: R.rolePct, role: R.role, rewards: (T.rewards || []).map(function (x) { return { at: x.at, name: x.name }; }) };
+    var E = THE, w = T.week || {};
+    var rows = E.rewards.map(function (r, i) {
+      return '<div class="frow thr-row"><input class="field num" type="number" min="1" max="999" data-thr="at" data-i="' + i + '" value="' + esc(r.at) + '" style="width:84px"><span class="muted">도</span>' +
+        '<input class="field" data-thr="name" data-i="' + i + '" maxlength="30" value="' + esc(r.name) + '" placeholder="보상 이름" style="flex:1">' +
+        (T.total >= r.at ? '<span class="thr-ok">' + ico("check") + "받음</span>" : "") + '<button class="btn ghost sm" data-thrdel="' + i + '" aria-label="이 보상 빼기">×</button></div>';
+    }).join("");
+    return '<div class="dsec"><h4>' + ico("thermo") + '지금 ' + T.total + '도</h4><p class="muted">아래 규칙대로 저절로 오르고, 칠판 온도계의 +1 · +3 단추로 직접 올릴 수도 있어요.</p></div>' +
+      '<div class="dsec"><h4>' + ico("spark") + '저절로 오르는 규칙</h4>' +
+      '<div class="thr-rule"><b>이름 없는 날</b><span>번호판 <b>이름 적기</b>에 아무도 없이 하루가 끝나면</span><span class="frow"><input class="field num" type="number" min="0" max="50" id="thNo" value="' + E.noName + '" style="width:70px"><span>도 오르기</span></span>' +
+      '<span class="frow"><span class="muted">하루 정산 시각</span><input class="field num" type="time" id="thCut" value="' + esc(E.cut) + '" style="width:120px"></span></div>' +
+      '<div class="thr-rule"><b>1인 1역 주간</b><span>한 주(월~금) 1인 1역 다 한 비율이</span><span class="frow"><input class="field num" type="number" min="1" max="100" id="thPct" value="' + E.rolePct + '" style="width:70px"><span>% 이상이면</span><input class="field num" type="number" min="0" max="50" id="thRole" value="' + E.role + '" style="width:70px"><span>도 오르기</span></span>' +
+      '<span class="muted">이번 주 지금까지 ' + (w.days ? w.pct + "% (" + w.days + "일)" : "기록 없음") + " · 금요일 정산 시각에 반영돼요</span></div>" +
+      '<p class="muted" style="margin-top:6px">0으로 적으면 그 규칙은 꺼져요. 번호판 기록이 하나도 없는 날(쉬는 날)은 세지 않아요. 이름 없는 날로 오른 뒤에 이름이 적히면 그만큼 다시 내려가요.</p></div>' +
+      '<div class="dsec"><h4>' + ico("trophy") + '보상 단계</h4>' + rows +
+      '<div class="frow" style="margin-top:6px"><button class="btn ghost sm" id="thrAdd">+ 보상 더하기</button><span class="muted">가장 높은 보상 온도가 온도계 끝(목표)이 돼요</span></div></div>' +
+      '<div class="frow"><button class="btn" id="thrSave">규칙 · 보상 저장</button><button class="btn ghost" id="thrUndo">고친 것 버리기</button><button class="btn ghost" id="thReset" style="margin-left:auto">온도계 0도로 새 출발</button></div>';
+  }
+  $("dbody").addEventListener("input", function (e) {
+    if (DTAB !== "thermo" || !THE) return; var t = e.target;
+    if (t.dataset.thr) { var r = THE.rewards[Number(t.dataset.i)]; if (r) r[t.dataset.thr] = t.dataset.thr === "at" ? Number(t.value) : t.value; return; }
+    if (t.id === "thNo") THE.noName = Number(t.value); if (t.id === "thCut") THE.cut = t.value; if (t.id === "thPct") THE.rolePct = Number(t.value); if (t.id === "thRole") THE.role = Number(t.value);
+  });
+  $("dbody").addEventListener("click", function (e) {
+    if (DTAB !== "thermo") return; var t = e.target.closest("button"); if (!t) return;
+    if (t.dataset.thrdel != null) { THE.rewards.splice(Number(t.dataset.thrdel), 1); drawDrawer(); return; }
+    if (t.id === "thrAdd") { var last = THE.rewards[THE.rewards.length - 1]; THE.rewards.push({ at: (last ? last.at : 0) + 25, name: "" }); drawDrawer(); var ins = document.querySelectorAll('[data-thr="name"]'); if (ins.length) ins[ins.length - 1].focus(); return; }
+    if (t.id === "thrUndo") { THE = null; drawDrawer(); return; }
+    if (t.id === "thrSave") {
+      var rw = THE.rewards.filter(function (r) { return r.at > 0 && String(r.name).trim(); }).sort(function (a, b) { return a.at - b.at; });
+      if (!rw.length) { toast("보상을 한 개 이상 적어 주세요"); return; }
+      if (!/^\d{1,2}:\d{2}$/.test(THE.cut)) { toast("정산 시각을 골라 주세요"); return; }
+      var o = { noName: THE.noName || 0, cut: THE.cut, rolePct: THE.rolePct || 80, role: THE.role || 0, rewards: rw };
+      write("thermoRulesSave", [TPW, o], { busy: "온도계 규칙 저장 중", msg: "온도계 규칙 · 보상을 저장했어요",
+        mut: function (d) { d.thermo.rewards = rw.map(function (r) { return { at: r.at, name: String(r.name).trim() }; }); d.thermo.goal = rw[rw.length - 1].at; d.thermo.rules = { noName: o.noName, cut: o.cut, rolePct: o.rolePct, role: o.role }; if (d.thermo.week) d.thermo.week.need = o.rolePct; THE = null; } });
+      drawDrawer(); return;
+    }
+  });
+
+  // 온도계 자동 규칙: 바탕화면 창이 몇 분마다 서버에 정산을 부탁한다 (같은 날 · 같은 주는 한 번만 오름)
+  var THAUTO = 0;
+  function thermoTick(force) {
+    if (!D || TWIN || (!force && Date.now() - THAUTO < 4 * 60 * 1000)) return; THAUTO = Date.now();
+    var R = D.thermo && D.thermo.rules; if (R && !R.noName && !R.role) return;
+    write("thermoAuto", [], { mut: function () {}, after: function (r) {
+      if (!r || !r.added || !r.added.length) return;
+      call("getAll", [], function () { syncState(); var tot = r.added.reduce(function (a, x) { return a + x.d; }, 0); toast("학급 온도계 +" + tot + "도 · " + r.added.map(function (x) { return x.why; }).join(", ")); var p = center($("tsvg")); confetti(p[0], p[1] - 40, 30, ["#e76f7f", "#f4a261", "#fff"]); }, true);
+    } });
+  }
+  setTimeout(function () { thermoTick(true); }, 6000);
+  setInterval(function () { thermoTick(false); }, 60 * 1000);
+
   function twinStart() {
     document.body.classList.add("twin");
     document.title = "선생님 서랍 · " + ((D && D.settings["학급 닉네임"]) || "우리반 바탕화면");
@@ -1180,6 +1259,7 @@
     else if (DTAB === "month") h = monthPane();
     else if (DTAB === "lesson") h = lessonPane();
     else if (DTAB === "notice") h = noticePane();
+    else if (DTAB === "thermo") h = thermoPane();
     $("dbody").innerHTML = h;
     if (DTAB === "tt") ttBind();
     if (DTAB === "month") monthBind();
@@ -1695,7 +1775,7 @@
   ];
 
   // ── 서랍 탭 색 (연한 바탕 · 진한 글자) ──
-  var DTC = { today: ["#e3f1fd", "#1d6fb8"], lesson: ["#fde9e1", "#b4502a"], notice: ["#e3effc", "#1d5a99"], note: ["#fdf3d8", "#956506"], safe: ["#fde7ef", "#b8336a"], tt: ["#e2f6e8", "#1f7a4a"], ev: ["#efe9fd", "#6d4fd0"],
+  var DTC = { today: ["#e3f1fd", "#1d6fb8"], lesson: ["#fde9e1", "#b4502a"], thermo: ["#fde4e7", "#b8323f"], notice: ["#e3effc", "#1d5a99"], note: ["#fdf3d8", "#956506"], safe: ["#fde7ef", "#b8336a"], tt: ["#e2f6e8", "#1f7a4a"], ev: ["#efe9fd", "#6d4fd0"],
     att: ["#fde4e4", "#b8323f"], month: ["#ffeedd", "#c0601a"], layout: ["#e6e9fd", "#4450c9"], feat: ["#ddf5f2", "#0f7a6e"], set: ["#eef1f5", "#3d4a5c"], sheet: ["#ddf4e6", "#178a55"] };
 
   // ── 잠금: 아이들이 화면을 누르지 못하게 (시계 · 타이머 · 날씨는 그대로 돈다). 풀 때는 선생님 비밀번호 ──

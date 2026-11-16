@@ -60,7 +60,7 @@ const GROUP = {
   '기록': '#9ca3af', '감정': '#9ca3af', '온도계': '#9ca3af',
 };
 const RAW = ['기록', '감정', '온도계'];   // 앱이 쓰는 원본 기록 — 평소엔 숨겨 두고 메뉴로 보이기
-const KINDS = { '우유': '#dbeafe', '다했어요': '#dcfce7', '1인1역': '#fef3c7', '발표': '#ede9fe' };
+const KINDS = { '우유': '#dbeafe', '다했어요': '#dcfce7', '1인1역': '#fef3c7', '발표': '#ede9fe', '이름': '#fde2e4' };
 const LIGHTS = { '초록': '#d1fae5', '노랑': '#fef3c7', '빨강': '#fee2e2' };
 const WIDTHS = {
   '설정': [130, 320, 440], '학생': [60, 110, 160, 60, 80, 60], '계정': [60, 100],
@@ -75,7 +75,7 @@ const ALIGN = {   // 칸마다 정렬 (polish_)
   '할일': 'cclc', '쪽지': 'cccl', '선생님노트': 'cccccl', '수업계획': 'ccclllllll', '알림장': 'clc', '모둠': 'cccc', '출결': 'cccccclc',
   '학생별': 'clcccccccc', '날짜별': 'ccccccccc', '기록': 'cccccl', '감정': 'ccccccl', '온도계': 'ccclc',
 };
-const SETTABLE = ['학급 닉네임', '학생 수', '이름 보이기', '지금 활동', '타이머 소리', '온도계 목표', '칭찬 이유', '독서 · 명상 시간', '과목',
+const SETTABLE = ['학급 닉네임', '학생 수', '이름 보이기', '지금 활동', '타이머 소리', '온도계 목표', '칭찬 이유', '온도계 보상', '온도계 이름 없는 날', '온도계 하루 정산 시각', '온도계 1인1역 기준', '온도계 1인1역 온도', '독서 · 명상 시간', '과목',
   '계정 확인', '계정 종류', '대표 색', '날씨 지역', '독서 음악 주소', '꺼 둔 기능', '화면 테마'];
 // 나이스 출결 기호 (종류 × 구분)
 const ATT = { '결석': { '질병': '♡', '미인정': '♥', '기타': '▲', '출석인정': '△' }, '지각': { '질병': '#', '미인정': 'X', '기타': '≠', '출석인정': '◁' },
@@ -121,6 +121,11 @@ function samples_(today) {
       ['타이머 소리', '예', '타이머 · 축하 소리 (예/아니오)'],
       ['온도계 목표', '100', '학급 온도계가 이 온도가 되면 축하'],
       ['칭찬 이유', '바른 인사,협동,정리정돈,발표,배려,집중', '온도계 올릴 때 고르는 이유 (쉼표로)'],
+      ['온도계 보상', '25:간식 보상,50:자유 체육 시간,75:자유 디벗 데이,100:영화 간식 파티', '온도별 보상 (온도:보상 이름, 쉼표로). 선생님 서랍 > 온도계에서 고쳐요'],
+      ['온도계 이름 없는 날', '5', "번호판 '이름 적기'에 아무도 없이 하루가 끝나면 오르는 온도 (0이면 끔)"],
+      ['온도계 하루 정산 시각', '14:30', '이 시각이 지나면 그날 이름 없는 날을 바로 온도계에 반영'],
+      ['온도계 1인1역 기준', '80', '한 주(월~금) 1인 1역 다 한 비율이 이 % 이상이면'],
+      ['온도계 1인1역 온도', '5', '그 주가 끝나면 오르는 온도 (0이면 끔)'],
       ['과목', '국어,도덕,수학,사회,과학,음악,미술,실과,체육,영어,창체', '시간표 스티커 (쉼표로)'],
       ['독서 · 명상 시간', '20', '독서 · 명상 모드 (분)'],
       ['독서 음악 주소', '', '내 음악 파일(mp3) 주소. 비워 두면 앱에 들어 있는 클래식 · 명상 음악'],
@@ -164,14 +169,14 @@ function samples_(today) {
 // ── 처음 한 번: 탭 · 머리글 · 예시 · 서식. 옛 시트에는 빠진 탭 · 항목만 더한다 ──────
 // 탭 만들기는 한 번에 한 곳에서만 (웹 앱 창과 '처음 상태로 다시 만들기'가 동시에 같은 탭을 만들지 않게)
 function setup() {
-  if (CacheService.getScriptCache().get('setup-v5')) return;
+  if (CacheService.getScriptCache().get('setup-v6')) return;
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) return;
   try { setup_(); } finally { lock.releaseLock(); }
 }
 function setup_() {
   const cache = CacheService.getScriptCache();
-  if (cache.get('setup-v5')) return;
+  if (cache.get('setup-v6')) return;
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const have = {};
   ss.getSheets().forEach(function (sh) { have[sh.getName()] = true; });
@@ -208,7 +213,7 @@ function setup_() {
     const first = ss.getSheetByName('시트1') || ss.getSheetByName('Sheet1');
     if (first && first.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(first);
   }
-  cache.put('setup-v5', '1', 600);
+  cache.put('setup-v6', '1', 600);
 }
 
 // 설정 탭 '설명' 칸은 앱이 쓰는 안내 글 — 코드가 바뀌면 옛 설명(예: 편지함)을 새 설명으로 맞춘다. 선생님이 적는 '값' 칸은 건드리지 않는다
@@ -808,7 +813,7 @@ function syncTabs_(force) {
 }
 function refreshAll() { _set = null; updateSummary(true); SpreadsheetApp.getActiveSpreadsheet().toast('체크표 · 학생별 · 날짜별을 새로 그렸어요.', '앱 설정', 4); }
 function restyle() {
-  CacheService.getScriptCache().remove('setup-v5'); setup();
+  CacheService.getScriptCache().remove('setup-v6'); setup();
   Object.keys(TABS).forEach(function (name) { if (sheet_(name)) decorate_(sheet_(name), name); });
   orderTabs_(); updateSummary(true);
 }
@@ -836,7 +841,7 @@ function resetAll() {
     tmp.showSheet(); ss.setActiveSheet(tmp);
     ss.getSheets().forEach(function (sh) { if (sh.getSheetId() !== tmp.getSheetId()) ss.deleteSheet(sh); });
     _set = null;
-    ['setup-v5', 'weather'].concat(ORDER.map(function (n) { return 'w-' + n; })).forEach(function (k) { cache.remove(k); });
+    ['setup-v6', 'weather'].concat(ORDER.map(function (n) { return 'w-' + n; })).forEach(function (k) { cache.remove(k); });
     setup_();
     ss.setActiveSheet(ss.getSheetByName('설정'));
     const left = ss.getSheetByName('잠깐');   // setup_ 이 이미 지웠을 수도 있다
@@ -948,7 +953,7 @@ function getAll(code) {
   const names = studentMap_(), students = [], md = today.slice(5);
   for (let i = 1; i <= n; i++) students.push({ no: i, name: names[i] ? names[i].name : '', role: names[i] ? names[i].role : '', sex: names[i] ? names[i].sex : '' });
   const act = String(s['지금 활동'] || '');
-  const milk = {}, done = {}, role = {}, talk = {}, feel = {};
+  const milk = {}, done = {}, role = {}, talk = {}, feel = {}, named = {};
   tail_('기록', 1500).forEach(function (r) {
     if (r['날짜'] !== today) return;
     const no = Number(r['번호']), k = r['종류'];
@@ -956,10 +961,11 @@ function getAll(code) {
     if (k === '다했어요' && r['내용'] === act) done[no] = 1;
     if (k === '1인1역') role[no] = 1;
     if (k === '발표') talk[no] = (talk[no] || 0) + 1;
+    if (k === '이름') named[no] = 1;
   });
   tail_('감정', 300).forEach(function (r) { if (r['날짜'] === today) feel[Number(r['번호'])] = 1; });   // 누가 했는지만 (색은 선생님만)
   const th = tail_('온도계', 8);
-  const thermo = { total: th.length ? Number(th[th.length - 1]['누적']) || 0 : 0, goal: Number(s['온도계 목표']) || 100,
+  const rw = thermoRewards_(), thermo = { total: th.length ? Number(th[th.length - 1]['누적']) || 0 : 0, goal: rw.length ? rw[rw.length - 1].at : Number(s['온도계 목표']) || 100, rewards: rw, rules: thermoRules_(), week: roleWeek_(mondayOf_(today), today, true),
     recent: th.slice(-4).reverse().map(function (r) { return { t: r['시각'], d: Number(r['변화']) || 0, why: r['이유'] }; }) };
   const quotes = rows_('명언').filter(function (r) { return r['글귀']; });
   const doy = Math.floor((new Date(today + 'T12:00:00') - new Date(today.slice(0, 4) + '-01-01T12:00:00')) / 86400000);
@@ -969,7 +975,7 @@ function getAll(code) {
   const bday = Object.keys(names).filter(function (no) { return Number(no) <= n && mmdd_(names[no].bday) === md; }).map(Number);
   return {
     settings: pub, today: today, weekday: weekday_(today), students: students, birthday: bday,
-    marks: { milk: milk, done: done, role: role, talk: talk, feel: feel, act: act },
+    marks: { milk: milk, done: done, role: role, talk: talk, feel: feel, name: named, act: act },
     thermo: thermo, tt: timetable_(today), subjects: list_('과목', '국어,도덕,수학,사회,과학,음악,미술,실과,체육,영어,창체'),
     praise: list_('칭찬 이유', '바른 인사,협동,정리정돈,발표,배려,집중'),
     quote: quote ? { text: quote['글귀'], who: quote['누가'] } : null,
@@ -1546,6 +1552,107 @@ function today_() { return Utilities.formatDate(new Date(), Session.getScriptTim
 function now_() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm'); }
 function addDays_(ymd, n) { const d = new Date(ymd + 'T12:00:00'); d.setDate(d.getDate() + n); return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
 
+// ── 학급 온도계 자동 규칙 · 보상 단계 ───────────────────────
+// 보상: '25:간식 보상,50:자유 체육 시간' → [{at:25, name:'간식 보상'}, ...] (온도 순)
+function thermoRewards_() {
+  return String(settings_()['온도계 보상'] || '').split(',').map(function (x) { const m = /^\s*(\d{1,3})\s*[:：]\s*(.+?)\s*$/.exec(x); return m ? { at: Number(m[1]), name: m[2].slice(0, 30) } : null; })
+    .filter(function (x) { return x && x.at > 0; }).sort(function (a, b) { return a.at - b.at; });
+}
+function thermoRules_() {
+  const s = settings_(), num = function (k, d) { const v = Number(s[k]); return isNaN(v) || String(s[k]).trim() === '' ? d : v; };
+  return { noName: Math.max(0, Math.min(50, num('온도계 이름 없는 날', 5))), cut: /^\d{1,2}:\d{2}$/.test(String(s['온도계 하루 정산 시각'] || '').trim()) ? String(s['온도계 하루 정산 시각']).trim() : '14:30',
+    rolePct: Math.max(1, Math.min(100, num('온도계 1인1역 기준', 80))), role: Math.max(0, Math.min(50, num('온도계 1인1역 온도', 5))) };
+}
+// 수업한 날 = 그날 번호판 기록(우유 · 다 했어요 · 1인 1역 · 발표 · 이름)이 하나라도 있는 평일
+function dayLog_() {
+  const by = {};
+  tail_('기록', 6000).forEach(function (r) { const d = String(r['날짜']); if (!d) return; const o = by[d] || (by[d] = { any: 0, name: 0, role: {} }); o.any++; if (r['종류'] === '이름') o.name++; if (r['종류'] === '1인1역') o.role[Number(r['번호'])] = 1; });
+  return by;
+}
+// 한 주 1인 1역 비율: (수업한 날마다 역할 다 한 학생 수 합) ÷ (학생 수 × 수업한 날 수)
+function roleWeek_(monday, upto, withToday, log) {
+  log = log || dayLog_();
+  const n = Object.keys(studentMap_()).length || studentCount_();
+  let days = 0, hit = 0;
+  for (let i = 0; i < 5; i++) {
+    const d = addDays_(monday, i); if (d > upto || (!withToday && d === upto)) break;
+    const o = log[d]; if (!o || !o.any) continue;
+    days++; hit += Object.keys(o.role).length;
+  }
+  return { monday: monday, days: days, pct: days ? Math.round(hit / (n * days) * 100) : 0, need: thermoRules_().rolePct };
+}
+function thermoAdd_(delta, why) {
+  const th = tail_('온도계', 1), total = Math.max(0, (th.length ? Number(th[0]['누적']) || 0 : 0) + delta);
+  sheet_('온도계').appendRow([now_(), today_(), delta, why.slice(0, 40), total]);
+  return total;
+}
+// 자동 규칙 정산 (바탕화면이 열려 있을 때 몇 분마다 부른다). 같은 날 · 같은 주는 한 번만
+function thermoAuto(code) {
+  guard_(code);
+  return locked_(function () {
+    const R = thermoRules_(), today = today_(), out = [];
+    let start = String(settings_()['온도계 자동 시작일'] || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) { setSetting_('온도계 자동 시작일', today); start = today; }   // 켠 날부터만 (지난 기록으로 한꺼번에 오르지 않게)
+    const log = dayLog_(), done = {};
+    rows_('온도계').forEach(function (r) { const w = String(r['이유'] || '').replace(/ 취소$/, ''); done[w] = (done[w] || 0) + (Number(r['변화']) || 0); });   // 이유별 순변화 (취소 포함)
+    const now = now_().slice(11, 16);
+    // 이름 없는 날: 시작일 ~ 오늘(정산 시각이 지났으면 오늘까지)
+    if (R.noName > 0) {
+      for (let d = start; d <= today; d = addDays_(d, 1)) {
+        const wd = new Date(d + 'T12:00:00').getDay(); if (wd === 0 || wd === 6) continue;
+        if (d === today && now < R.cut) continue;
+        const o = log[d]; if (!o || !o.any || o.name) continue;
+        const why = '이름 없는 날 (' + d.slice(5).replace('-', '/') + ')';
+        if ((done[why] || 0) > 0 || (done[why] === 0 && o.name)) continue;
+        thermoAdd_(R.noName, why); done[why] = 1; out.push({ d: R.noName, why: why });
+      }
+    }
+    // 1인 1역 주간: 끝난 주(금요일이 지났거나 오늘이 금요일 정산 시각 뒤)
+    if (R.role > 0) {
+      for (let m = mondayOf_(start); m <= mondayOf_(today); m = addDays_(m, 7)) {
+        const fri = addDays_(m, 4), over = fri < today || (fri === today && now >= R.cut); if (!over) continue;
+        const w = roleWeek_(m < start ? m : m, fri, true, log); if (!w.days || w.pct < R.rolePct) continue;
+        const why = '1인 1역 ' + w.pct + '% 주간 (' + m.slice(5).replace('-', '/') + '~)';
+        const key = '1인 1역 주간 (' + m.slice(5).replace('-', '/') + '~)';
+        if (Object.keys(done).some(function (k) { return k.indexOf('1인 1역 ') === 0 && k.indexOf('주간 (' + m.slice(5).replace('-', '/') + '~)') > 0 && done[k] > 0; })) continue;
+        thermoAdd_(R.role, why); done[key] = 1; out.push({ d: R.role, why: why });
+      }
+    }
+    return { added: out };
+  });
+}
+// 번호판 '이름 적기' (선생님만). 이름 없는 날로 이미 올랐는데 이름이 적히면 그만큼 되돌린다
+function nameMark(code, pw, no) {
+  guard_(code); tpw_(pw); no = checkNo_(no);
+  return locked_(function () {
+    const st = studentMap_()[no] || { name: '' }, today = today_();
+    const hit = tail_('기록', 1500).reverse().filter(function (r) { return r['날짜'] === today && r['종류'] === '이름' && Number(r['번호']) === no; })[0];
+    if (hit) { sheet_('기록').deleteRow(hit._row); return { ok: true, on: false }; }
+    sheet_('기록').appendRow([now_(), today, '이름', no, st.name, '']);
+    const why = '이름 없는 날 (' + today.slice(5).replace('-', '/') + ')';
+    let net = 0; rows_('온도계').forEach(function (r) { if (r['이유'] === why || r['이유'] === why + ' 취소') net += Number(r['변화']) || 0; });
+    if (net > 0) thermoAdd_(-net, why + ' 취소');
+    return { ok: true, on: true, undone: net > 0 ? net : 0 };
+  });
+}
+// 서랍 > 온도계: 규칙과 보상을 한 번에 저장
+function thermoRulesSave(code, pw, o) {
+  guard_(code); tpw_(pw); o = o || {};
+  const rw = (o.rewards || []).map(function (x) { return { at: Math.round(Number(x.at)), name: String(x.name || '').replace(/[,:：]/g, ' ').trim().slice(0, 30) }; })
+    .filter(function (x) { return x.at >= 1 && x.at <= 999 && x.name; }).sort(function (a, b) { return a.at - b.at; });
+  if (!rw.length) throw new Error('보상을 한 개 이상 적어 주세요.');
+  const cut = String(o.cut || '14:30').trim(); if (!/^\d{1,2}:\d{2}$/.test(cut)) throw new Error('정산 시각은 14:30처럼 적어 주세요.');
+  return locked_(function () {
+    setSetting_('온도계 보상', rw.map(function (x) { return x.at + ':' + x.name; }).join(','));
+    setSetting_('온도계 목표', String(rw[rw.length - 1].at));
+    setSetting_('온도계 이름 없는 날', String(Math.max(0, Math.min(50, Math.round(Number(o.noName) || 0)))));
+    setSetting_('온도계 하루 정산 시각', cut.length === 4 ? '0' + cut : cut);
+    setSetting_('온도계 1인1역 기준', String(Math.max(1, Math.min(100, Math.round(Number(o.rolePct) || 80)))));
+    setSetting_('온도계 1인1역 온도', String(Math.max(0, Math.min(50, Math.round(Number(o.role) || 0)))));
+    return { ok: true, rewards: rw };
+  });
+}
+
 // ── 알림장 (날짜마다 한 줄. 칠판 카드에는 오늘 것만) ─────────────────────
 function noticeSheet_() {
   let sh = sheet_('알림장');
@@ -1765,5 +1872,5 @@ async function searchSchool(code, pw, name, office) {
   return parseSchools_(await (await fetch(schoolUrl_(name, office))).json());
 }
 
-return { noticeList: noticeList, noticeSave: noticeSave, lessonWeek: lessonWeek, lessonFind: lessonFind, lessonSave: lessonSave, lessonDel: lessonDel, addDays_: addDays_, addEvent: addEvent, addMemo: addMemo, addMissing_: addMissing_, addNote: addNote, addTodo: addTodo, applySettings: applySettings, attendGet: attendGet, attendSave: attendSave, attendSheet_: attendSheet_, changePw: changePw, charts_: charts_, checkNo_: checkNo_, checkTeacher: checkTeacher, clearRecords: clearRecords, colA1_: colA1_, decorate_: decorate_, delMemo: delMemo, delTodo: delTodo, dish_: dish_, doGet: doGet, drawChecks_: drawChecks_, dv_: dv_, feel: feel, findRow_: findRow_, geocode_: geocode_, getAccount: getAccount, getAll: getAll, getMeal: getMeal, getWeather: getWeather, guard2_: guard2_, guard_: guard_, head_: head_, list_: list_, locked_: locked_, mailPw: mailPw, mainColor_: mainColor_, maskMail_: maskMail_, mealSchool_: mealSchool_, mealUrl_: mealUrl_, migrate_: migrate_, mmdd_: mmdd_, mondayOf_: mondayOf_, monthData: monthData, monthDays_: monthDays_, monthReport: monthReport, monthView_: monthView_, nextNo_: nextNo_, now_: now_, onEdit: onEdit, onOpen: onOpen, orderTabs_: orderTabs_, parseMeals_: parseMeals_, parseSchools_: parseSchools_, polish_: polish_, present: present, pwMailHtml_: pwMailHtml_, pwMailText_: pwMailText_, readmeAgain: readmeAgain, readmeOld_: readmeOld_, readme_: readme_, refreshAll: refreshAll, removeSamples: removeSamples, removeSamples_: removeSamples_, resetAll: resetAll, restyle: restyle, rows_: rows_, safe_: safe_, same_: same_, samples_: samples_, saveGroups: saveGroups, saveLayout: saveLayout, saveLocation: saveLocation, saveSchool: saveSchool, saveSeats: saveSeats, saveSetting: saveSetting, saveTimetable: saveTimetable, schoolUrl_: schoolUrl_, searchSchool: searchSchool, seedDemo_: seedDemo_, sendFeedback: sendFeedback, services_: services_, setSetting_: setSetting_, settings_: settings_, setup: setup, setup_: setup_, shareInfo: shareInfo, sheetTool: sheetTool, sheet_: sheet_, showUrls: showUrls, sortEvents: sortEvents, sortNotes: sortNotes, sortRange_: sortRange_, sortStudents: sortStudents, studentCount_: studentCount_, studentMap_: studentMap_, styleTab_: styleTab_, sync: sync, syncNotes_: syncNotes_, syncTabs_: syncTabs_, tail_: tail_, tally_: tally_, tap: tap, teacher: teacher, text_: text_, thermo: thermo, thermoReset: thermoReset, tidyTable_: tidyTable_, timetable_: timetable_, tint_: tint_, today_: today_, toggleRaw: toggleRaw, toggleTodo: toggleTodo, tpw_: tpw_, undoPresent: undoPresent, updateSummary: updateSummary, weekday_: weekday_, writeTable_: writeTable_ };
+return { thermoAuto: thermoAuto, nameMark: nameMark, thermoRulesSave: thermoRulesSave, noticeList: noticeList, noticeSave: noticeSave, lessonWeek: lessonWeek, lessonFind: lessonFind, lessonSave: lessonSave, lessonDel: lessonDel, addDays_: addDays_, addEvent: addEvent, addMemo: addMemo, addMissing_: addMissing_, addNote: addNote, addTodo: addTodo, applySettings: applySettings, attendGet: attendGet, attendSave: attendSave, attendSheet_: attendSheet_, changePw: changePw, charts_: charts_, checkNo_: checkNo_, checkTeacher: checkTeacher, clearRecords: clearRecords, colA1_: colA1_, decorate_: decorate_, delMemo: delMemo, delTodo: delTodo, dish_: dish_, doGet: doGet, drawChecks_: drawChecks_, dv_: dv_, feel: feel, findRow_: findRow_, geocode_: geocode_, getAccount: getAccount, getAll: getAll, getMeal: getMeal, getWeather: getWeather, guard2_: guard2_, guard_: guard_, head_: head_, list_: list_, locked_: locked_, mailPw: mailPw, mainColor_: mainColor_, maskMail_: maskMail_, mealSchool_: mealSchool_, mealUrl_: mealUrl_, migrate_: migrate_, mmdd_: mmdd_, mondayOf_: mondayOf_, monthData: monthData, monthDays_: monthDays_, monthReport: monthReport, monthView_: monthView_, nextNo_: nextNo_, now_: now_, onEdit: onEdit, onOpen: onOpen, orderTabs_: orderTabs_, parseMeals_: parseMeals_, parseSchools_: parseSchools_, polish_: polish_, present: present, pwMailHtml_: pwMailHtml_, pwMailText_: pwMailText_, readmeAgain: readmeAgain, readmeOld_: readmeOld_, readme_: readme_, refreshAll: refreshAll, removeSamples: removeSamples, removeSamples_: removeSamples_, resetAll: resetAll, restyle: restyle, rows_: rows_, safe_: safe_, same_: same_, samples_: samples_, saveGroups: saveGroups, saveLayout: saveLayout, saveLocation: saveLocation, saveSchool: saveSchool, saveSeats: saveSeats, saveSetting: saveSetting, saveTimetable: saveTimetable, schoolUrl_: schoolUrl_, searchSchool: searchSchool, seedDemo_: seedDemo_, sendFeedback: sendFeedback, services_: services_, setSetting_: setSetting_, settings_: settings_, setup: setup, setup_: setup_, shareInfo: shareInfo, sheetTool: sheetTool, sheet_: sheet_, showUrls: showUrls, sortEvents: sortEvents, sortNotes: sortNotes, sortRange_: sortRange_, sortStudents: sortStudents, studentCount_: studentCount_, studentMap_: studentMap_, styleTab_: styleTab_, sync: sync, syncNotes_: syncNotes_, syncTabs_: syncTabs_, tail_: tail_, tally_: tally_, tap: tap, teacher: teacher, text_: text_, thermo: thermo, thermoReset: thermoReset, tidyTable_: tidyTable_, timetable_: timetable_, tint_: tint_, today_: today_, toggleRaw: toggleRaw, toggleTodo: toggleTodo, tpw_: tpw_, undoPresent: undoPresent, updateSummary: updateSummary, weekday_: weekday_, writeTable_: writeTable_ };
 })();
