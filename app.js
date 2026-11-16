@@ -518,7 +518,8 @@
   function numHTML(s) {
     var m = showMode();
     if (nameBig(s)) return '<span class="nm jua" style="font-size:min(30cqh,24cqw); color:inherit">' + esc(s.name) + "</span>" + (m === "nb" ? '<span class="rl num">' + s.no + "번</span>" : "");
-    return '<span class="n jua num">' + s.no + "</span>" + (m === "both" && s.name ? '<span class="nm">' + esc(s.name) + "</span>" : "");
+    if (m === "both" && s.name) return '<span class="n2 jua num">' + s.no + '</span><span class="nm nmbig jua">' + esc(s.name) + "</span>";
+    return '<span class="n jua num">' + s.no + "</span>";
   }
   function drawPanel() {
     var modes = MODES.filter(function (m) { return (m.id !== "acct" || D.settings["계정 확인"] !== "아니오") && !isOff(m.name); });
