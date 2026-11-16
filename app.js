@@ -451,7 +451,7 @@
     // 보상 단계: 받은 것 ✓ · 다음 것 강조
     $("trw").innerHTML = RW.map(function (r) { var st = T.total >= r.at ? "ok" : r === nx ? "next" : ""; return '<li class="' + st + '"><b class="num">' + r.at + "°</b><span>" + esc(r.name) + "</span>" + (st === "ok" ? ico("check") : "") + "</li>"; }).join("");
     var w = T.week, R = T.rules || {}, nm = Object.keys(D.marks.name || {}).length, au = [];
-    if (R.noName) au.push('<span class="' + (nm ? "bad" : "good") + '">오늘 이름 ' + nm + "명" + (nm ? "" : " · " + esc(R.cut) + " +" + R.noName + "°") + "</span>");
+    if (R.noName) au.push('<span class="' + (nm ? "bad" : "good") + '">오늘 수업방해 ' + nm + "명" + (nm ? " · 쉬는 시간 −" + nm + "분" : " · " + esc(R.cut) + " +" + R.noName + "°") + "</span>");
     if (R.role && w) au.push('<span class="' + (w.days && w.pct >= w.need ? "good" : "") + '">이번 주 1인 1역 <b class="num">' + (w.days ? w.pct : 0) + "%</b>/" + w.need + "%</span>");
     $("tauto").innerHTML = au.join("");
     if (THLAST != null && !TWIN && T.total > THLAST) { var got = RW.filter(function (r) { return THLAST < r.at && T.total >= r.at; }); if (got.length) { var g = got[got.length - 1]; setTimeout(function () { party(g.at + "도 달성! 🎁 " + g.name); }, 700); } }
@@ -490,7 +490,7 @@
   var MODES = [
     { id: "milk", name: "우유 다 먹었어요", ic: "milk", c: "#2e77c8" }, { id: "done", name: "다 했어요", ic: "done", c: "#35915a" },
     { id: "role", name: "1인 1역", ic: "role", c: "#b3831f" }, { id: "talk", name: "발표", ic: "hand", c: "#7566c0" },
-    { id: "name", name: "이름 적기", ic: "note", c: "#c9364b" },
+    { id: "name", name: "수업방해", ic: "x", c: "#c9364b" },
     { id: "acct", name: "내 계정", ic: "key", c: "#2b968f" } ];
   // 이름 보이기: 번호와 이름 / 이름과 번호 / 번호만 / 이름만
   var NAMEOPT = ["번호와 이름", "이름과 번호", "번호만", "이름만"];
@@ -514,7 +514,7 @@
       MODE === "done" ? (TPW ? '<input class="act-in" id="actIn" maxlength="40" value="' + esc(mk.act || "") + '" placeholder="지금 활동 이름" aria-label="지금 활동 이름 (고치고 Enter)" title="고치고 Enter를 누르면 바뀌어요">' :
         '<span class="act">' + ico("note") + esc(mk.act || "지금 활동") + "</span>") + '<span>다 한 친구 <b class="num">' + cnt + "</b> / " + n + '</span><span class="pbar"><i style="width:' + Math.round(cnt / n * 100) + '%"></i></span>' :
       MODE === "role" ? '<span>역할 다 한 친구 <b class="num">' + cnt + "</b> / " + n + '</span><span class="pbar"><i style="width:' + Math.round(cnt / n * 100) + '%"></i></span>' :
-      MODE === "name" ? (function () { var k = Object.keys(mk.name || {}).length, R = D.thermo.rules || {}; return '<span>오늘 이름 적힌 친구 <b class="num">' + k + "</b>명</span>" + (R.noName ? '<span class="nmhint">' + (k ? "내일은 아무도 없이 지내 봐요!" : "이대로 " + esc(R.cut || "14:30") + "까지 가면 온도계 +" + R.noName + "도") + "</span>" : "") + (TPW ? "" : '<span class="nmhint">적고 지우기는 선생님만</span>'); })() :
+      MODE === "name" ? (function () { var k = Object.keys(mk.name || {}).length, R = D.thermo.rules || {}; return '<span>오늘 수업방해 <b class="num">' + k + "</b>명" + (k ? ' · 쉬는 시간 <b class="num">−' + k + "</b>분" : "") + "</span>" + (R.noName ? '<span class="nmhint">' + (k ? "오늘은 온도계가 오르지 않아요" : "이대로 " + esc(R.cut || "14:30") + "까지 가면 온도계 +" + R.noName + "도") + "</span>" : "") + (TPW ? "" : '<span class="nmhint">선택 · 취소는 선생님만</span>'); })() :
       MODE === "talk" ? '<span>오늘 발표 <b class="num">' + talkTotal + "</b>번 · 손 든 친구 <b class='num'>" + Object.keys(mk.talk).length + "</b>명</span>" :
       MODE === "feel" ? '<span>내 번호를 누르고 마음 색을 골라요 · 마음 나눈 친구 <b class="num">' + Object.keys(mk.feel || {}).length + "</b> / " + n + "</span>" :
       "<span>내 번호를 누르면 아이디와 비밀번호 힌트가 30초 동안 보여요</span>";
@@ -550,9 +550,9 @@
     if (MODE === "name") {
       if (needTeacher()) return;
       var onN = !(mk.name || {})[no];
-      write("nameMark", [TPW, no], { busy: onN ? who + " 이름 적는 중" : who + " 이름 지우는 중", msg: onN ? who + " 이름을 적었어요" : who + " 이름을 지웠어요",
+      write("nameMark", [TPW, no], { busy: onN ? who + " 수업방해 선택 중" : who + " 수업방해 취소 중", msg: onN ? who + " 수업방해" : who + " 수업방해 취소",
         mut: function (d) { d.marks.name = d.marks.name || {}; if (onN) d.marks.name[no] = 1; else delete d.marks.name[no]; },
-        after: function (r) { if (r && r.undone) { toast("오늘 '이름 없는 날' +" + r.undone + "도를 되돌렸어요"); call("getAll", [], function () { syncState(); }, true); } } });
+        after: function (r) { if (r && r.undone) { toast("오늘 '수업방해 없는 날' +" + r.undone + "도를 되돌렸어요"); call("getAll", [], function () { syncState(); }, true); } } });
       return;
     }
     if (MODE === "talk") {
@@ -1190,11 +1190,11 @@
     }).join("");
     return '<div class="dsec"><h4>' + ico("thermo") + '지금 ' + T.total + '도</h4><p class="muted">아래 규칙대로 저절로 오르고, 칠판 온도계의 +1 · +3 단추로 직접 올릴 수도 있어요.</p></div>' +
       '<div class="dsec"><h4>' + ico("spark") + '저절로 오르는 규칙</h4>' +
-      '<div class="thr-rule"><b>이름 없는 날</b><span>번호판 <b>이름 적기</b>에 아무도 없이 하루가 끝나면</span><span class="frow"><input class="field num" type="number" min="0" max="50" id="thNo" value="' + E.noName + '" style="width:70px"><span>도 오르기</span></span>' +
+      '<div class="thr-rule"><b>수업방해 없는 날</b><span>번호판 <b>수업방해</b>에 그날 한 명도 선택하지 않으면</span><span class="frow"><input class="field num" type="number" min="0" max="50" id="thNo" value="' + E.noName + '" style="width:70px"><span>도 오르기</span></span>' +
       '<span class="frow"><span class="muted">하루 정산 시각</span><input class="field num" type="time" id="thCut" value="' + esc(E.cut) + '" style="width:120px"></span></div>' +
       '<div class="thr-rule"><b>1인 1역 주간</b><span>한 주(월~금) 1인 1역 다 한 비율이</span><span class="frow"><input class="field num" type="number" min="1" max="100" id="thPct" value="' + E.rolePct + '" style="width:70px"><span>% 이상이면</span><input class="field num" type="number" min="0" max="50" id="thRole" value="' + E.role + '" style="width:70px"><span>도 오르기</span></span>' +
       '<span class="muted">이번 주 지금까지 ' + (w.days ? w.pct + "% (" + w.days + "일)" : "기록 없음") + " · 금요일 정산 시각에 반영돼요</span></div>" +
-      '<p class="muted" style="margin-top:6px">0으로 적으면 그 규칙은 꺼져요. 번호판 기록이 하나도 없는 날(쉬는 날)은 세지 않아요. 이름 없는 날로 오른 뒤에 이름이 적히면 그만큼 다시 내려가요.</p></div>' +
+      '<p class="muted" style="margin-top:6px">0으로 적으면 그 규칙은 꺼져요. 번호판 기록이 하나도 없는 날(쉬는 날)은 세지 않아요. 정산 뒤에 수업방해를 선택하면 그날 오른 온도는 다시 내려가요.</p></div>' +
       '<div class="dsec"><h4>' + ico("trophy") + '보상 단계</h4>' + rows +
       '<div class="frow" style="margin-top:6px"><button class="btn ghost sm" id="thrAdd">+ 보상 더하기</button><span class="muted">가장 높은 보상 온도가 온도계 끝(목표)이 돼요</span></div></div>' +
       '<div class="frow"><button class="btn" id="thrSave">규칙 · 보상 저장</button><button class="btn ghost" id="thrUndo">고친 것 버리기</button><button class="btn ghost" id="thReset" style="margin-left:auto">온도계 0도로 새 출발</button></div>';

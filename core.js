@@ -60,7 +60,7 @@ const GROUP = {
   '기록': '#9ca3af', '감정': '#9ca3af', '온도계': '#9ca3af',
 };
 const RAW = ['기록', '감정', '온도계'];   // 앱이 쓰는 원본 기록 — 평소엔 숨겨 두고 메뉴로 보이기
-const KINDS = { '우유': '#dbeafe', '다했어요': '#dcfce7', '1인1역': '#fef3c7', '발표': '#ede9fe', '이름': '#fde2e4' };
+const KINDS = { '우유': '#dbeafe', '다했어요': '#dcfce7', '1인1역': '#fef3c7', '발표': '#ede9fe', '수업방해': '#fde2e4' };
 const LIGHTS = { '초록': '#d1fae5', '노랑': '#fef3c7', '빨강': '#fee2e2' };
 const WIDTHS = {
   '설정': [130, 320, 440], '학생': [60, 110, 160, 60, 80, 60], '계정': [60, 100],
@@ -75,7 +75,7 @@ const ALIGN = {   // 칸마다 정렬 (polish_)
   '할일': 'cclc', '쪽지': 'cccl', '선생님노트': 'cccccl', '수업계획': 'ccclllllll', '알림장': 'clc', '모둠': 'cccc', '출결': 'cccccclc',
   '학생별': 'clcccccccc', '날짜별': 'ccccccccc', '기록': 'cccccl', '감정': 'ccccccl', '온도계': 'ccclc',
 };
-const SETTABLE = ['학급 닉네임', '학생 수', '이름 보이기', '지금 활동', '타이머 소리', '온도계 목표', '칭찬 이유', '온도계 보상', '온도계 이름 없는 날', '온도계 하루 정산 시각', '온도계 1인1역 기준', '온도계 1인1역 온도', '독서 · 명상 시간', '과목',
+const SETTABLE = ['학급 닉네임', '학생 수', '이름 보이기', '지금 활동', '타이머 소리', '온도계 목표', '칭찬 이유', '온도계 보상', '온도계 수업방해 없는 날', '온도계 하루 정산 시각', '온도계 1인1역 기준', '온도계 1인1역 온도', '독서 · 명상 시간', '과목',
   '계정 확인', '계정 종류', '대표 색', '날씨 지역', '독서 음악 주소', '꺼 둔 기능', '화면 테마'];
 // 나이스 출결 기호 (종류 × 구분)
 const ATT = { '결석': { '질병': '♡', '미인정': '♥', '기타': '▲', '출석인정': '△' }, '지각': { '질병': '#', '미인정': 'X', '기타': '≠', '출석인정': '◁' },
@@ -122,8 +122,8 @@ function samples_(today) {
       ['온도계 목표', '100', '학급 온도계가 이 온도가 되면 축하'],
       ['칭찬 이유', '바른 인사,협동,정리정돈,발표,배려,집중', '온도계 올릴 때 고르는 이유 (쉼표로)'],
       ['온도계 보상', '25:간식 보상,50:자유 체육 시간,75:자유 디벗 데이,100:영화 간식 파티', '온도별 보상 (온도:보상 이름, 쉼표로). 선생님 서랍 > 온도계에서 고쳐요'],
-      ['온도계 이름 없는 날', '5', "번호판 '이름 적기'에 아무도 없이 하루가 끝나면 오르는 온도 (0이면 끔)"],
-      ['온도계 하루 정산 시각', '14:30', '이 시각이 지나면 그날 이름 없는 날을 바로 온도계에 반영'],
+      ['온도계 수업방해 없는 날', '5', "번호판 '수업방해'에 아무도 선택되지 않은 날 오르는 온도 (0이면 끔)"],
+      ['온도계 하루 정산 시각', '14:30', '매일 이 시각에 그날 수업방해 없는 날을 온도계에 반영'],
       ['온도계 1인1역 기준', '80', '한 주(월~금) 1인 1역 다 한 비율이 이 % 이상이면'],
       ['온도계 1인1역 온도', '5', '그 주가 끝나면 오르는 온도 (0이면 끔)'],
       ['과목', '국어,도덕,수학,사회,과학,음악,미술,실과,체육,영어,창체', '시간표 스티커 (쉼표로)'],
@@ -169,14 +169,14 @@ function samples_(today) {
 // ── 처음 한 번: 탭 · 머리글 · 예시 · 서식. 옛 시트에는 빠진 탭 · 항목만 더한다 ──────
 // 탭 만들기는 한 번에 한 곳에서만 (웹 앱 창과 '처음 상태로 다시 만들기'가 동시에 같은 탭을 만들지 않게)
 function setup() {
-  if (CacheService.getScriptCache().get('setup-v6')) return;
+  if (CacheService.getScriptCache().get('setup-v7')) return;
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) return;
   try { setup_(); } finally { lock.releaseLock(); }
 }
 function setup_() {
   const cache = CacheService.getScriptCache();
-  if (cache.get('setup-v6')) return;
+  if (cache.get('setup-v7')) return;
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const have = {};
   ss.getSheets().forEach(function (sh) { have[sh.getName()] = true; });
@@ -213,7 +213,7 @@ function setup_() {
     const first = ss.getSheetByName('시트1') || ss.getSheetByName('Sheet1');
     if (first && first.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(first);
   }
-  cache.put('setup-v6', '1', 600);
+  cache.put('setup-v7', '1', 600);
 }
 
 // 설정 탭 '설명' 칸은 앱이 쓰는 안내 글 — 코드가 바뀌면 옛 설명(예: 편지함)을 새 설명으로 맞춘다. 선생님이 적는 '값' 칸은 건드리지 않는다
@@ -248,6 +248,8 @@ function migrate_() {
   // '아침 독서 시간' → '독서 · 명상 시간' (선생님이 적어 둔 분은 그대로)
   const set = sheet_('설정');
   if (set) { const sv = set.getDataRange().getValues(); for (let i = 1; i < sv.length; i++) if (String(sv[i][0]).trim() === '아침 독서 시간') { set.getRange(i + 1, 1, 1, 3).setValues([['독서 · 명상 시간', sv[i][1], '독서 · 명상 모드 (분)']]); _set = null; } }
+  // '온도계 이름 없는 날' → '온도계 수업방해 없는 날' (값은 그대로)
+  if (set) { const sv = set.getDataRange().getValues(); if (!sv.some(function (r) { return String(r[0]).trim() === '온도계 수업방해 없는 날'; })) for (let i = 1; i < sv.length; i++) if (String(sv[i][0]).trim() === '온도계 이름 없는 날') { set.getRange(i + 1, 1, 1, 1).setValues([['온도계 수업방해 없는 날']]); _set = null; } }
   // v3: 편지함을 없앴다 → 설정 탭의 편지함 줄도 치운다 (편지함 탭은 선생님 기록이라 그대로 둔다)
   if (set) { const sv = set.getDataRange().getValues(); for (let i = sv.length - 1; i >= 1; i--) if (/^편지함 (주소|QR 바꾸기)$/.test(String(sv[i][0]).trim())) { set.deleteRow(i + 1); _set = null; } }
   const st = sheet_('학생');
@@ -813,7 +815,7 @@ function syncTabs_(force) {
 }
 function refreshAll() { _set = null; updateSummary(true); SpreadsheetApp.getActiveSpreadsheet().toast('체크표 · 학생별 · 날짜별을 새로 그렸어요.', '앱 설정', 4); }
 function restyle() {
-  CacheService.getScriptCache().remove('setup-v6'); setup();
+  CacheService.getScriptCache().remove('setup-v7'); setup();
   Object.keys(TABS).forEach(function (name) { if (sheet_(name)) decorate_(sheet_(name), name); });
   orderTabs_(); updateSummary(true);
 }
@@ -841,7 +843,7 @@ function resetAll() {
     tmp.showSheet(); ss.setActiveSheet(tmp);
     ss.getSheets().forEach(function (sh) { if (sh.getSheetId() !== tmp.getSheetId()) ss.deleteSheet(sh); });
     _set = null;
-    ['setup-v6', 'weather'].concat(ORDER.map(function (n) { return 'w-' + n; })).forEach(function (k) { cache.remove(k); });
+    ['setup-v7', 'weather'].concat(ORDER.map(function (n) { return 'w-' + n; })).forEach(function (k) { cache.remove(k); });
     setup_();
     ss.setActiveSheet(ss.getSheetByName('설정'));
     const left = ss.getSheetByName('잠깐');   // setup_ 이 이미 지웠을 수도 있다
@@ -961,7 +963,7 @@ function getAll(code) {
     if (k === '다했어요' && r['내용'] === act) done[no] = 1;
     if (k === '1인1역') role[no] = 1;
     if (k === '발표') talk[no] = (talk[no] || 0) + 1;
-    if (k === '이름') named[no] = 1;
+    if (k === '수업방해' || k === '이름') named[no] = 1;
   });
   tail_('감정', 300).forEach(function (r) { if (r['날짜'] === today) feel[Number(r['번호'])] = 1; });   // 누가 했는지만 (색은 선생님만)
   const th = tail_('온도계', 8);
@@ -1560,13 +1562,13 @@ function thermoRewards_() {
 }
 function thermoRules_() {
   const s = settings_(), num = function (k, d) { const v = Number(s[k]); return isNaN(v) || String(s[k]).trim() === '' ? d : v; };
-  return { noName: Math.max(0, Math.min(50, num('온도계 이름 없는 날', 5))), cut: /^\d{1,2}:\d{2}$/.test(String(s['온도계 하루 정산 시각'] || '').trim()) ? String(s['온도계 하루 정산 시각']).trim() : '14:30',
+  return { noName: Math.max(0, Math.min(50, num(s['온도계 수업방해 없는 날'] != null && String(s['온도계 수업방해 없는 날']).trim() !== '' ? '온도계 수업방해 없는 날' : '온도계 이름 없는 날', 5))), cut: /^\d{1,2}:\d{2}$/.test(String(s['온도계 하루 정산 시각'] || '').trim()) ? String(s['온도계 하루 정산 시각']).trim() : '14:30',
     rolePct: Math.max(1, Math.min(100, num('온도계 1인1역 기준', 80))), role: Math.max(0, Math.min(50, num('온도계 1인1역 온도', 5))) };
 }
 // 수업한 날 = 그날 번호판 기록(우유 · 다 했어요 · 1인 1역 · 발표 · 이름)이 하나라도 있는 평일
 function dayLog_() {
   const by = {};
-  tail_('기록', 6000).forEach(function (r) { const d = String(r['날짜']); if (!d) return; const o = by[d] || (by[d] = { any: 0, name: 0, role: {} }); o.any++; if (r['종류'] === '이름') o.name++; if (r['종류'] === '1인1역') o.role[Number(r['번호'])] = 1; });
+  tail_('기록', 6000).forEach(function (r) { const d = String(r['날짜']); if (!d) return; const o = by[d] || (by[d] = { any: 0, name: 0, role: {} }); o.any++; if (r['종류'] === '수업방해' || r['종류'] === '이름') o.name++; if (r['종류'] === '1인1역') o.role[Number(r['번호'])] = 1; });
   return by;
 }
 // 한 주 1인 1역 비율: (수업한 날마다 역할 다 한 학생 수 합) ÷ (학생 수 × 수업한 날 수)
@@ -1594,15 +1596,15 @@ function thermoAuto(code) {
     let start = String(settings_()['온도계 자동 시작일'] || '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) { setSetting_('온도계 자동 시작일', today); start = today; }   // 켠 날부터만 (지난 기록으로 한꺼번에 오르지 않게)
     const log = dayLog_(), done = {};
-    rows_('온도계').forEach(function (r) { const w = String(r['이유'] || '').replace(/ 취소$/, ''); done[w] = (done[w] || 0) + (Number(r['변화']) || 0); });   // 이유별 순변화 (취소 포함)
+    rows_('온도계').forEach(function (r) { const w = String(r['이유'] || '').replace(/ 취소$/, '').replace(/^이름 없는 날/, '수업방해 없는 날'); done[w] = (done[w] || 0) + (Number(r['변화']) || 0); });   // 이유별 순변화 (취소 포함)
     const now = now_().slice(11, 16);
-    // 이름 없는 날: 시작일 ~ 오늘(정산 시각이 지났으면 오늘까지)
+    // 수업방해 없는 날: 시작일 ~ 오늘(정산 시각이 지났으면 오늘까지)
     if (R.noName > 0) {
       for (let d = start; d <= today; d = addDays_(d, 1)) {
         const wd = new Date(d + 'T12:00:00').getDay(); if (wd === 0 || wd === 6) continue;
         if (d === today && now < R.cut) continue;
         const o = log[d]; if (!o || !o.any || o.name) continue;
-        const why = '이름 없는 날 (' + d.slice(5).replace('-', '/') + ')';
+        const why = '수업방해 없는 날 (' + d.slice(5).replace('-', '/') + ')';
         if ((done[why] || 0) > 0 || (done[why] === 0 && o.name)) continue;
         thermoAdd_(R.noName, why); done[why] = 1; out.push({ d: R.noName, why: why });
       }
@@ -1621,16 +1623,16 @@ function thermoAuto(code) {
     return { added: out };
   });
 }
-// 번호판 '이름 적기' (선생님만). 이름 없는 날로 이미 올랐는데 이름이 적히면 그만큼 되돌린다
+// 번호판 '수업방해' (선생님만). 정산 시각 뒤 이미 올랐는데 선택하면 그만큼 되돌린다
 function nameMark(code, pw, no) {
   guard_(code); tpw_(pw); no = checkNo_(no);
   return locked_(function () {
     const st = studentMap_()[no] || { name: '' }, today = today_();
-    const hit = tail_('기록', 1500).reverse().filter(function (r) { return r['날짜'] === today && r['종류'] === '이름' && Number(r['번호']) === no; })[0];
+    const hit = tail_('기록', 1500).reverse().filter(function (r) { return r['날짜'] === today && (r['종류'] === '수업방해' || r['종류'] === '이름') && Number(r['번호']) === no; })[0];
     if (hit) { sheet_('기록').deleteRow(hit._row); return { ok: true, on: false }; }
-    sheet_('기록').appendRow([now_(), today, '이름', no, st.name, '']);
-    const why = '이름 없는 날 (' + today.slice(5).replace('-', '/') + ')';
-    let net = 0; rows_('온도계').forEach(function (r) { if (r['이유'] === why || r['이유'] === why + ' 취소') net += Number(r['변화']) || 0; });
+    sheet_('기록').appendRow([now_(), today, '수업방해', no, st.name, '']);
+    const md = today.slice(5).replace('-', '/'), why = '수업방해 없는 날 (' + md + ')';
+    let net = 0; rows_('온도계').forEach(function (r) { const w = String(r['이유'] || '').replace(/ 취소$/, '').replace(/^이름 없는 날/, '수업방해 없는 날'); if (w === why) net += Number(r['변화']) || 0; });
     if (net > 0) thermoAdd_(-net, why + ' 취소');
     return { ok: true, on: true, undone: net > 0 ? net : 0 };
   });
@@ -1645,7 +1647,7 @@ function thermoRulesSave(code, pw, o) {
   return locked_(function () {
     setSetting_('온도계 보상', rw.map(function (x) { return x.at + ':' + x.name; }).join(','));
     setSetting_('온도계 목표', String(rw[rw.length - 1].at));
-    setSetting_('온도계 이름 없는 날', String(Math.max(0, Math.min(50, Math.round(Number(o.noName) || 0)))));
+    setSetting_('온도계 수업방해 없는 날', String(Math.max(0, Math.min(50, Math.round(Number(o.noName) || 0)))));
     setSetting_('온도계 하루 정산 시각', cut.length === 4 ? '0' + cut : cut);
     setSetting_('온도계 1인1역 기준', String(Math.max(1, Math.min(100, Math.round(Number(o.rolePct) || 80)))));
     setSetting_('온도계 1인1역 온도', String(Math.max(0, Math.min(50, Math.round(Number(o.role) || 0)))));

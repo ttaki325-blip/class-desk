@@ -148,7 +148,7 @@
     if (G.GS.pending()) return;
     await G.GS.open(G.GS.info().id);
     LAST_FULL = LAST_FRESH = Date.now();
-    G.CacheService.getScriptCache().remove('setup-v6');   // 시트에서 학생 수 · 계정 종류를 고쳤으면 다음 읽기에서 탭을 맞춘다
+    G.CacheService.getScriptCache().remove('setup-v7');   // 시트에서 학생 수 · 계정 종류를 고쳤으면 다음 읽기에서 탭을 맞춘다
   }
   // 마지막으로 누른 뒤 2.5초, 길어도 8초 안에는 보낸다
   function schedule() {
