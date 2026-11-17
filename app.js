@@ -884,11 +884,20 @@
   $("dMsg").onclick = function () { DTAB = "msg"; drawDrawer(); };
 
   // ── 선생님 서랍은 새 창으로 ──
+  // 모니터가 둘이면 선생님 서랍은 주 모니터(선생님 모니터)에 띄운다. 처음 한 번 '창 관리' 권한을 물어본다
+  var SCR = null;
+  function scrPrep() { if (!("getScreenDetails" in window)) return Promise.resolve(null); return window.getScreenDetails().then(function (d) { SCR = d; return d; }).catch(function () { return null; }); }
+  try { navigator.permissions.query({ name: "window-management" }).then(function (p) { if (p.state === "granted") scrPrep(); }).catch(function () {}); } catch (e) {}
   function openTW(tab) {
     DTAB = tab || DTAB || "today";
     if (TW && !TW.closed) { try { TW.focus(); if (TW.DESKAPP) TW.DESKAPP.show(DTAB); } catch (e) {} return; }
-    var w = Math.min(1280, screen.availWidth || 1280), h = Math.min(900, screen.availHeight || 900);
-    TW = window.open(location.pathname + "?teacher=1&tab=" + encodeURIComponent(DTAB), "deskTeacher", "popup=yes,width=" + w + ",height=" + h);
+    if (!SCR && "getScreenDetails" in window && !openTW.asked) { openTW.asked = true; scrPrep().then(function () { openTW(tab); }); return; }
+    var w = Math.min(1280, screen.availWidth || 1280), h = Math.min(900, screen.availHeight || 900), pos = "";
+    if (SCR && SCR.screens && SCR.screens.length > 1 && SCR.currentScreen && !SCR.currentScreen.isPrimary) {
+      var P = SCR.screens.filter(function (x) { return x.isPrimary; })[0];
+      if (P) { w = Math.min(1280, P.availWidth - 40); h = Math.min(900, P.availHeight - 40); pos = ",left=" + Math.round(P.availLeft + (P.availWidth - w) / 2) + ",top=" + Math.round(P.availTop + (P.availHeight - h) / 2); }
+    }
+    TW = window.open(location.pathname + "?teacher=1&tab=" + encodeURIComponent(DTAB), "deskTeacher", "popup=yes,width=" + w + ",height=" + h + pos);
     if (!TW) toast("새 창이 막혔어요. 주소창 오른쪽의 팝업 차단 표시를 눌러 이 사이트를 '항상 허용'으로 바꿔 주세요");
   }
   if (!TWIN) {
