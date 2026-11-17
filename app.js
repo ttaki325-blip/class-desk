@@ -906,6 +906,13 @@
       var P = others.filter(function (x) { return x.isPrimary; })[0] || others[0];
       if (P) { w = Math.min(1280, P.availWidth - 40); h = Math.min(900, P.availHeight - 40); var L = Math.round(P.availLeft + (P.availWidth - w) / 2), T = Math.round(P.availTop + (P.availHeight - h) / 2); pos = ",left=" + L + ",top=" + T; openTW.at = [L, T, w, h]; }
     }
+    // 진단: 왜 선생님 모니터로 못 옮기는지 화면에 잠깐 보여 준다
+    (function () {
+      var why = !("getScreenDetails" in window) ? "이 크롬은 창 관리 기능이 없어요 (크롬 업데이트 필요)" :
+        screen.isExtended === false ? "크롬이 모니터를 1개로 알고 있어요 (디스플레이 '확장' 확인)" :
+        !SCR ? "창 관리 권한이 아직 없어요" : SCR.screens.length < 2 ? "모니터를 1개만 찾았어요" : pos ? "" : "옮길 모니터를 못 골랐어요";
+      try { navigator.permissions.query({ name: "window-management" }).then(function (p) { if (why) toast("서랍 위치: " + why + " · 권한 " + ({ granted: "허용", denied: "차단", prompt: "묻기 전" }[p.state] || p.state) + " · 모니터 " + (SCR ? SCR.screens.length : "?") + "개", null, null, 9000); }).catch(function () { if (why) toast("서랍 위치: " + why, null, null, 9000); }); } catch (e) { if (why) toast("서랍 위치: " + why, null, null, 9000); }
+    })();
     TW = window.open(location.pathname + "?teacher=1&tab=" + encodeURIComponent(DTAB), "deskTeacher", "popup=yes,width=" + w + ",height=" + h + pos);
     if (TW && pos && openTW.at) { var at = openTW.at; [300, 1200].forEach(function (ms) { setTimeout(function () { try { if (TW && !TW.closed && Math.abs(TW.screenX - at[0]) > 50) { TW.moveTo(at[0], at[1]); TW.resizeTo(at[2], at[3]); } } catch (e) {} }, ms); }); }
     if (!TW) toast("새 창이 막혔어요. 주소창 오른쪽의 팝업 차단 표시를 눌러 이 사이트를 '항상 허용'으로 바꿔 주세요");
