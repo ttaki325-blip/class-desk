@@ -724,7 +724,12 @@
   }
   $("tBig").onclick = function () { tmSize(ls("classdesk-tmsize") === "mid"); $("bigTimer").classList.add("on"); tmDraw(); };
   $("bigSize").onclick = function () { tmSize(!$("bigTimer").classList.contains("mid")); };
-  function brkLabel() { $("bigAuto").textContent = "쉬는 시간 자동 " + (ls("classdesk-breaktimer") !== "off" ? "켜짐" : "꺼짐"); $("bigAuto").classList.toggle("off", ls("classdesk-breaktimer") === "off"); }
+  function brkLabel() {
+    var on = ls("classdesk-breaktimer") !== "off";
+    $("bigAuto").textContent = "쉬는 시간 자동 " + (on ? "켜짐" : "꺼짐"); $("bigAuto").classList.toggle("off", !on);
+    $("brkBtn").textContent = on ? "쉬는 시간 자동" : "자동 꺼짐"; $("brkBtn").classList.toggle("on", on); $("brkBtn").classList.toggle("off", !on);
+  }
+  $("brkBtn").onclick = function (e) { e.stopPropagation(); $("bigAuto").click(); };
   $("bigAuto").onclick = function () { ls("classdesk-breaktimer", ls("classdesk-breaktimer") === "off" ? null : "off"); brkLabel(); toast(ls("classdesk-breaktimer") === "off" ? "쉬는 시간 자동 타이머를 껐어요" : "교시가 끝나면 타이머가 저절로 떠요"); };
   brkLabel();
   (function () {
