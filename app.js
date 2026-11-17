@@ -1368,9 +1368,25 @@
     if (TWIN || !D || !D.tt || !breakAuto() || TM.run) return;
     var now = new Date(), wd = now.getDay(); if (wd === 0 || wd === 6) return;
     var m = now.getHours() * 60 + now.getMinutes(), s = m * 60 + now.getSeconds(), P = D.tt.periods.filter(function (p) { return p.time && p.subj; });
+    // 점심시간: 요일별로 정한 시각 (예: 월,수,금: 12:10-12:50; 화,목: 12:10-12:45)
+    var wdc = "일월화수목금토".charAt(wd), L = null;
+    String((D.settings && D.settings["점심 타이머"]) || "월,수,금: 12:10-12:50; 화,목: 12:10-12:45").split(/[;\n]+/).forEach(function (line) {
+      var q = /^\s*([월화수목금,\s·]+)\s*[:：]\s*(\d{1,2}:\d{2})\s*[-~]\s*(\d{1,2}:\d{2})/.exec(line); if (q && q[1].indexOf(wdc) >= 0) L = { a: toMin(q[2]), b: toMin(q[3]), end: q[3] };
+    });
+    if (L && m >= L.a && m < L.b) {
+      var lk = D.today + "|lunch";
+      if (BRK.done !== lk && ls("classdesk-brk") !== lk) {
+        var ll = L.b * 60 - s; if (ll < 30) return;
+        BRK.done = lk; ls("classdesk-brk", lk);
+        tmSet(ll); TM.warned = false; TM.auto = true; TM.lab = "점심시간"; TM.end = Date.now() + TM.left * 1000; TM.run = true; tmSave(); tmDraw();
+        tmSize(true); $("bigTimer").classList.add("on"); if (chimeOn()) chime([659, 988]);
+      }
+      return;
+    }
     for (var i = 0; i < P.length - 1; i++) {
       var t1 = String(P[i].time).split("-"), b = toMin(t1[1] || t1[0]), a2 = toMin(String(P[i + 1].time).split("-")[0]);
       if (!(a2 > b) || a2 - b > 90) continue;
+      if (L && b < L.b && a2 > L.a) continue;   // 점심시간과 겹치는 쉬는 시간은 점심 타이머가 맡는다
       var key = D.today + "|" + P[i].n;
       if (m >= b && m < a2 && BRK.done !== key && ls("classdesk-brk") !== key) {
         var left = a2 * 60 - s; if (left < 30) return;
