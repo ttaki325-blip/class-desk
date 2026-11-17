@@ -537,8 +537,7 @@
         return '<span>지금 수업방해 <b class="num">' + k + "</b>명" + (k ? ' · 쉬는 시간 <b class="num">−' + k + "</b>분" : "") + "</span>" +
           (R.noName ? '<span class="nmhint">' + (day ? "오늘 " + day + "번 · 온도계가 오르지 않아요" : "이대로 " + esc(R.cut || "14:30") + "까지 가면 온도계 +" + R.noName + "도") + "</span>" : "") +
           (k ? '<span class="nmhint">교시가 끝나면 저절로 리셋돼요</span>' : "") +
-          (NMDEL ? '<span class="nmhint nmdelhint">지울 친구 번호를 누르세요</span><button class="btn nmreset" id="nmDelEnd">다 지웠어요</button>' :
-            TPW ? (k ? '<button class="btn nmdel" id="nmDel">기록 지우기</button>' : "") : '<span class="nmhint">선택 · 취소는 선생님만</span>'); })() :
+          (TPW ? "" : '<span class="nmhint">선택 · 취소는 선생님만</span>'); })() :
       MODE === "talk" ? '<span>오늘 발표 <b class="num">' + talkTotal + "</b>번 · 손 든 친구 <b class='num'>" + Object.keys(mk.talk).length + "</b>명</span>" :
       MODE === "feel" ? '<span>내 번호를 누르고 마음 색을 골라요 · 마음 나눈 친구 <b class="num">' + Object.keys(mk.feel || {}).length + "</b> / " + n + "</span>" :
       "<span>내 번호를 누르면 아이디와 비밀번호 힌트가 30초 동안 보여요</span>";
@@ -552,12 +551,10 @@
       var on = MODE === "milk" ? mk.milk[s.no] : MODE === "done" ? mk.done[s.no] : MODE === "role" ? mk.role[s.no] : MODE === "name" ? (mk.name || {})[s.no] : MODE === "feel" ? (mk.feel || {})[s.no] : 0, talk = mk.talk[s.no] || 0;
       return '<button class="nb' + (on ? " on" : "") + '" data-no="' + s.no + '" aria-label="' + esc(label(s)) + '">' + numHTML(s) +
         (MODE === "role" && s.role ? '<span class="rl">' + esc(s.role) + "</span>" : "") +
-        (MODE === "talk" ? '<span class="stars num' + (talk ? " has" : "") + '">' + talk + "</span>" : '<span class="mark">' + ico(MODE === "feel" ? "heart" : MODE === "name" ? "x" : "check") + "</span>") + (MODE === "name" && NMDEL && on ? '<span class="nmdelx">지우기</span>' : "") + "</button>";
+        (MODE === "talk" ? '<span class="stars num' + (talk ? " has" : "") + '">' + talk + "</span>" : '<span class="mark">' + ico(MODE === "feel" ? "heart" : MODE === "name" ? "x" : "check") + "</span>") + "</button>";
     }).join("");
   }
   document.addEventListener("click", function (e) {
-    if (e.target.closest("#nmDel")) { if (needTeacher()) return; NMDEL = true; drawPanel(); return; }
-    if (e.target.closest("#nmDelEnd")) { NMDEL = false; drawPanel(); return; }
     var t = e.target.closest("[data-mode]"); if (t) { MODE = t.dataset.mode; drawPanel(); return; }
     var b = e.target.closest(".nb"); if (b && D) { tapNo(Number(b.dataset.no), b); return; }
   });
@@ -576,13 +573,14 @@
     if (MODE === "name") {
       if (needTeacher()) return;
       var onN = !(mk.name || {})[no], pl = periodNow(), lab = pl.cur ? pl.cur.p.n + "교시" : (function () { var last = null, m = new Date().getHours() * 60 + new Date().getMinutes(); D.tt.periods.forEach(function (p) { if (toMin(String(p.time).split("-")[0]) <= m) last = p; }); return last ? last.n + "교시 뒤" : "수업 전"; })();
-      if (NMDEL) {
-        if (onN) { toast("빨간 칸(선택된 친구)만 지울 수 있어요"); return; }
-        write("nameUndo", [TPW, no], { msg: who + " 수업방해 기록을 지웠어요",
-          mut: function (d) { if (d.marks.name) delete d.marks.name[no]; d.marks.nameDay = Math.max(0, (d.marks.nameDay || 1) - 1); if (!Object.keys(d.marks.name || {}).length) NMDEL = false; } });
+      // 다시 누르면 취소: 기록까지 지운다 (교시 끝 리셋은 저절로 되고, 그때는 기록이 남음)
+      if (!onN) {
+        write("nameUndo", [TPW, no], { msg: who + " 수업방해 취소 · 기록도 지웠어요",
+          mut: function (d) { if (d.marks.name) delete d.marks.name[no]; d.marks.nameDay = Math.max(0, (d.marks.nameDay || 1) - 1); },
+          after: function () { thermoTick(true); } });
         return;
       }
-      toast(onN ? who + " 수업방해" : who + " 해제 · 기록은 남아요");
+      toast(who + " 수업방해");
       write("nameMark", [TPW, no, lab], {
         mut: function (d) { d.marks.name = d.marks.name || {}; if (onN) { d.marks.name[no] = 1; d.marks.nameDay = (d.marks.nameDay || 0) + 1; } else delete d.marks.name[no]; },
         after: function (r) { if (r && r.undone) { toast("오늘 '수업방해 없는 날' +" + r.undone + "도를 되돌렸어요"); call("getAll", [], function () { syncState(); }, true); } } });
@@ -1272,7 +1270,7 @@
     var L = NL.data.list;
     return head + (L.length ? '<div class="nl-list">' + L.map(function (x) {
       return '<div class="nl-row' + (x.off ? " off" : "") + '"><span class="num">' + esc(x.t) + "</span><b>" + esc(x.label || "") + "</b><span>" + x.no + "번 " + esc(x.name || "") + "</span><em>" + (x.off ? "리셋됨" : "지금 선택") + '</em><button class="btn ghost sm" data-nldel="' + esc(x.at) + '|' + x.no + '">기록 지우기</button></div>';
-    }).join("") + '</div><p class="muted" style="margin-top:6px">번호판에서 취소하거나 리셋해도 기록은 남아요. 실수로 누른 것만 [기록 지우기]로 지워 주세요. 기록이 하나라도 있으면 그날은 온도계가 오르지 않아요.</p>' : '<p class="muted">이날은 수업방해 기록이 없어요</p>') + "</div>";
+    }).join("") + '</div><p class="muted" style="margin-top:6px">번호판에서 다시 누르면 기록도 지워져요. 교시가 끝나 저절로 리셋된 기록은 남아 있으니, 잘못 남은 기록은 여기서 [기록 지우기]로 지워 주세요. 기록이 하나라도 있으면 그날은 온도계가 오르지 않아요.</p>' : '<p class="muted">이날은 수업방해 기록이 없어요</p>') + "</div>";
   }
   $("dbody").addEventListener("click", function (e) {
     if (DTAB !== "thermo") return; var t = e.target.closest("button"); if (!t) return;
@@ -1282,7 +1280,7 @@
       var a = t.dataset.nldel.split("|");
       write("nameDel", [TPW, a[0], Number(a[1])], { busy: "기록 지우는 중", msg: "수업방해 기록을 지웠어요",
         mut: function (d) { if (NL.data) NL.data.list = NL.data.list.filter(function (x) { return !(String(x.at) === a[0] && x.no === Number(a[1])); }); if (NL.d === d.today) { d.marks.nameDay = Math.max(0, (d.marks.nameDay || 1) - 1); } },
-        after: function () { NL.data = null; nameLogLoad(true); try { if (TOP && !TOP.closed) TOP.DESKAPP.refresh(); } catch (x) {} } });
+        after: function () { NL.data = null; nameLogLoad(true); try { if (TOP && !TOP.closed) { TOP.DESKAPP.refresh(); setTimeout(function () { try { TOP.thermoTick(true); } catch (y) {} }, 1500); } } catch (x) {} } });
       drawDrawer(); return;
     }
   });
@@ -2373,11 +2371,10 @@
 
   // 발표 뽑기 (크게) ------------------------------------------------------------
   var PK = { k: 1, last: [], sex: "" };
-  var NMDEL = false;   // 수업방해 '기록 지우기' 모드
   // 교시가 끝나면 선택된 친구를 저절로 리셋 (바탕화면 창에서 30초마다 확인, 기록은 남음)
   setInterval(function () {
     if (TWIN || !D || !Object.keys((D.marks && D.marks.name) || {}).length || busyNow()) return;
-    write("nameAutoReset", [], { mut: function () {}, after: function (r) { if (r && r.n) { NMDEL = false; call("getAll", [], function () { syncState(); toast("교시가 끝나서 수업방해를 리셋했어요 · 기록은 남아요"); }, true); } } });
+    write("nameAutoReset", [], { mut: function () {}, after: function (r) { if (r && r.n) { call("getAll", [], function () { syncState(); toast("교시가 끝나서 수업방해를 리셋했어요 · 기록은 남아요"); }, true); } } });
   }, 30 * 1000);
   function pickTool() { pickDraw(); }
   function pickDraw() {
