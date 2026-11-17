@@ -896,13 +896,18 @@
   function openTW(tab) {
     DTAB = tab || DTAB || "today";
     if (TW && !TW.closed) { try { TW.focus(); if (TW.DESKAPP) TW.DESKAPP.show(DTAB); } catch (e) {} return; }
-    if (!SCR && "getScreenDetails" in window && screen.isExtended !== false && !openTW.asked) { openTW.asked = true; scrPrep().then(function () { openTW(tab); }); return; }
+    if (!SCR && "getScreenDetails" in window && screen.isExtended !== false && !openTW.once) { openTW.once = true; scrPrep().then(function () { openTW.once = false; openTW.go = true; openTW(tab); }); return; }
     var w = Math.min(1280, screen.availWidth || 1280), h = Math.min(900, screen.availHeight || 900), pos = "";
-    if (SCR && SCR.screens && SCR.screens.length > 1 && SCR.currentScreen && !SCR.currentScreen.isPrimary) {
-      var P = SCR.screens.filter(function (x) { return x.isPrimary; })[0];
-      if (P) { w = Math.min(1280, P.availWidth - 40); h = Math.min(900, P.availHeight - 40); pos = ",left=" + Math.round(P.availLeft + (P.availWidth - w) / 2) + ",top=" + Math.round(P.availTop + (P.availHeight - h) / 2); }
+    if (SCR && SCR.screens && SCR.screens.length > 1) {
+      // 바탕화면이 떠 있는 모니터가 아닌 다른 모니터(선생님 모니터)를 고른다. 같은 좌표면 같은 모니터
+      var cx = window.screenX + window.outerWidth / 2, cy = window.screenY + window.outerHeight / 2;
+      var here = SCR.screens.filter(function (x) { return cx >= x.left && cx < x.left + x.width && cy >= x.top && cy < x.top + x.height; })[0] || SCR.currentScreen;
+      var others = SCR.screens.filter(function (x) { return !here || x.left !== here.left || x.top !== here.top; });
+      var P = others.filter(function (x) { return x.isPrimary; })[0] || others[0];
+      if (P) { w = Math.min(1280, P.availWidth - 40); h = Math.min(900, P.availHeight - 40); var L = Math.round(P.availLeft + (P.availWidth - w) / 2), T = Math.round(P.availTop + (P.availHeight - h) / 2); pos = ",left=" + L + ",top=" + T; openTW.at = [L, T, w, h]; }
     }
     TW = window.open(location.pathname + "?teacher=1&tab=" + encodeURIComponent(DTAB), "deskTeacher", "popup=yes,width=" + w + ",height=" + h + pos);
+    if (TW && pos && openTW.at) { var at = openTW.at; [300, 1200].forEach(function (ms) { setTimeout(function () { try { if (TW && !TW.closed && Math.abs(TW.screenX - at[0]) > 50) { TW.moveTo(at[0], at[1]); TW.resizeTo(at[2], at[3]); } } catch (e) {} }, ms); }); }
     if (!TW) toast("새 창이 막혔어요. 주소창 오른쪽의 팝업 차단 표시를 눌러 이 사이트를 '항상 허용'으로 바꿔 주세요");
   }
   if (!TWIN) {
