@@ -75,7 +75,7 @@ const ALIGN = {   // 칸마다 정렬 (polish_)
   '할일': 'cclc', '쪽지': 'cccl', '선생님노트': 'cccccl', '수업계획': 'ccclllllll', '알림장': 'clc', '모둠': 'cccc', '출결': 'cccccclc',
   '학생별': 'clcccccccc', '날짜별': 'ccccccccc', '기록': 'cccccl', '감정': 'ccccccl', '온도계': 'ccclc',
 };
-const SETTABLE = ['학급 닉네임', '학생 수', '이름 보이기', '지금 활동', '타이머 소리', '온도계 목표', '칭찬 이유', '온도계 보상', '온도계 수업방해 없는 날', '온도계 하루 정산 시각', '온도계 1인1역 기준', '온도계 1인1역 온도', '독서 · 명상 시간', '과목',
+const SETTABLE = ['학급 닉네임', '학생 수', '이름 보이기', '지금 활동', '타이머 소리', '온도계 목표', '칭찬 이유', '요일별 시각', '온도계 보상', '온도계 수업방해 없는 날', '온도계 하루 정산 시각', '온도계 1인1역 기준', '온도계 1인1역 온도', '독서 · 명상 시간', '과목',
   '계정 확인', '계정 종류', '대표 색', '날씨 지역', '독서 음악 주소', '꺼 둔 기능', '화면 테마'];
 // 나이스 출결 기호 (종류 × 구분)
 const ATT = { '결석': { '질병': '♡', '미인정': '♥', '기타': '▲', '출석인정': '△' }, '지각': { '질병': '#', '미인정': 'X', '기타': '≠', '출석인정': '◁' },
@@ -121,6 +121,7 @@ function samples_(today) {
       ['타이머 소리', '예', '타이머 · 축하 소리 (예/아니오)'],
       ['온도계 목표', '100', '학급 온도계가 이 온도가 되면 축하'],
       ['칭찬 이유', '바른 인사,협동,정리정돈,발표,배려,집중', '온도계 올릴 때 고르는 이유 (쉼표로)'],
+      ['요일별 시각', '화,목: 5교시 12:50', '요일마다 다른 교시 시각. 예) 화,목: 5교시 12:50 → 그 뒤 교시도 같이 당겨짐 / 수: 5교시 13:00-13:40'],
       ['온도계 보상', '25:간식 보상,50:자유 체육 시간,75:자유 디벗 데이,100:영화 간식 파티', '온도별 보상 (온도:보상 이름, 쉼표로). 선생님 서랍 > 온도계에서 고쳐요'],
       ['온도계 수업방해 없는 날', '5', "번호판 '수업방해'에 아무도 선택되지 않은 날 오르는 온도 (0이면 끔)"],
       ['온도계 하루 정산 시각', '14:30', '매일 이 시각에 그날 수업방해 없는 날을 온도계에 반영'],
@@ -996,6 +997,24 @@ function sync(code) {
   return getAll(code);
 }
 // 기초시간표: 줄 = 교시(시각), 칸 = 월~금. 시각이 적힌 줄만 교시로 센다
+// '요일별 시각' 설정 적용. '화,목: 5교시 12:50' → 화 · 목은 5교시를 12:50에 시작하고 6교시부터도 같은 만큼 옮긴다.
+// '5교시 12:50-13:30'처럼 끝까지 적으면 그 교시만 그대로 쓴다. 여러 줄은 ; 또는 줄바꿈으로
+function dayTimes_(times, wd) {
+  const tm = function (s) { const m = /(\d{1,2}):(\d{2})/.exec(s || ''); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+  const hm = function (n) { return ('0' + Math.floor(n / 60)).slice(-2) + ':' + ('0' + n % 60).slice(-2); };
+  const out = times.slice();
+  String(settings_()['요일별 시각'] || '').split(/[;\n]+/).forEach(function (line) {
+    const m = /^\s*([월화수목금,\s·]+)\s*[:：]\s*(.+)$/.exec(line); if (!m || m[1].indexOf(wd) < 0) return;
+    m[2].split(',').forEach(function (part) {
+      const q = /(\d)\s*교시\s*(\d{1,2}:\d{2})(?:\s*[-~]\s*(\d{1,2}:\d{2}))?/.exec(part); if (!q) return;
+      const k = Number(q[1]) - 1, ns = tm(q[2]); if (!out[k] && !q[3]) return;
+      if (q[3]) { out[k] = hm(ns) + '-' + hm(tm(q[3])); return; }
+      const os = tm(String(out[k]).split(/[-~]/)[0]); if (os == null) return; const d = ns - os;
+      for (let i = k; i < out.length; i++) { const ab = String(out[i]).split(/[-~]/); const a = tm(ab[0]), b = tm(ab[1]); if (a == null) continue; out[i] = hm(a + d) + (b != null ? '-' + hm(b + d) : ''); }
+    });
+  });
+  return out;
+}
 function timetable_(day) {
   const rows = rows_('기초시간표'), base = { '월': [], '화': [], '수': [], '목': [], '금': [] };
   rows.forEach(function (r) { Object.keys(base).forEach(function (d) { base[d].push(r[d] || ''); }); });
@@ -1004,6 +1023,7 @@ function timetable_(day) {
   if (!times.length) times = String(settings_()['교시 시각'] || '').split(',').map(function (x) { return x.trim(); }).filter(String);
   times = times.slice(0, 7);
   const wd = weekday_(day), over = rows_('시간표변경').filter(function (r) { return r['날짜'] === day; })[0];
+  times = dayTimes_(times, wd);
   const list = over ? [1, 2, 3, 4, 5, 6, 7].map(function (i) { return over[i + '교시'] || ''; }) : (base[wd] || []);
   return { periods: times.map(function (t, i) { return { n: i + 1, time: t, subj: list[i] || '' }; }), changed: !!over, base: base, count: times.length };
 }

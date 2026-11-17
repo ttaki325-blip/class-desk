@@ -17,7 +17,7 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="desk.css?v=my20">
+<link rel="stylesheet" href="desk.css?v=my21">
 <script src="https://accounts.google.com/gsi/client" async></script>
 <!--
   우리반 바탕화면 앱판 (kimman.kr/desk) — GAS판 v3.0 화면에 구글 시트 직접 연결을 더한 것 — 화면 · 만든 사람 김맨 (https://kimman.kr) · CC BY-SA 4.0 · 주문대
@@ -475,7 +475,7 @@
   .big{position:fixed; inset:0; z-index:85; display:none; place-items:center; background:radial-gradient(circle at 50% 40%, #fff, #efeaff 60%, #e3dcff)}
   .big.on{display:grid}
   .big .bt{font-size:min(36vh,28vw); color:#46336e; line-height:1; text-align:center} .big .bs{font-size:28px; color:var(--sub); text-align:center; font-weight:800}
-  .big .bx{position:absolute; top:20px; right:24px} .big .bxs{display:flex; gap:8px; z-index:2}
+  .big .bx{position:absolute; top:20px; right:24px} .big .bxs{display:flex; gap:8px; z-index:2} #bigAuto{color:#2f8a52} #bigAuto.off{color:var(--sub)}
   /* 타이머 중간 크기: 화면 위쪽에 떠 있는 창. 번호판 · 카드는 그대로 누를 수 있다. 끌어서 옮길 수 있음 */
   #bigTimer.mid{inset:auto; top:var(--mt,90px); left:var(--ml,calc(50% - min(300px,21vw))); width:min(600px,42vw); display:none; padding:14px 18px 16px; border-radius:24px;
     box-shadow:0 24px 60px -18px rgba(40,30,90,.45), 0 0 0 1.5px rgba(117,102,192,.25); cursor:grab; touch-action:none}
@@ -1089,7 +1089,7 @@
 <div class="big" id="bigClock" role="dialog" aria-label="큰 시계"><button class="btn ghost bx" id="bcClose">닫기</button>
   <div class="bclock"><svg viewBox="0 0 200 200" id="analogB" aria-hidden="true"></svg>
     <div class="bcd"><span class="ap" id="bAp"></span><div class="bct jua num"><span id="bH">--</span><span class="colon">:</span><span id="bM">--</span></div><div class="bcdate" id="bDate"></div><div class="bcnow" id="bNow" hidden><i></i><span></span></div></div></div></div>
-<div class="big" id="bigTimer"><div class="bx bxs"><button class="btn ghost" id="bigSize">중간 크기로</button><button class="btn ghost" id="bigClose">닫기</button></div><div class="bt-in"><div class="bt jua num" id="bigT">05:00</div><div class="bbar"><i id="bigBar"></i></div><div class="bs" id="bigS"></div>
+<div class="big" id="bigTimer"><div class="bx bxs"><button class="btn ghost" id="bigAuto">쉬는 시간 자동 켜짐</button><button class="btn ghost" id="bigSize">중간 크기로</button><button class="btn ghost" id="bigClose">닫기</button></div><div class="bt-in"><div class="bt jua num" id="bigT">05:00</div><div class="bbar"><i id="bigBar"></i></div><div class="bs" id="bigS"></div>
   <div class="bctl"><button class="chip" data-pre="60">1분</button><button class="chip" data-pre="180">3분</button><button class="chip" data-pre="300">5분</button><button class="chip" data-pre="600">10분</button><button class="chip" data-pre="900">15분</button></div>
   <div class="bctl"><button class="btn ghost" data-bstep="-60">−1분</button><button class="btn ghost" data-bstep="60">+1분</button><button class="btn ghost" data-bstep="-10">−10초</button><button class="btn ghost" data-bstep="10">+10초</button>
     <button class="btn jua" id="bGo" style="min-width:130px">시작</button><button class="btn ghost" id="bReset">처음으로</button><button class="btn ghost" id="bSnd"></button></div></div></div>
@@ -1112,10 +1112,10 @@
 
 <div class="desk-start" id="deskStart" role="dialog" aria-modal="true" aria-label="우리반 바탕화면 시작" hidden></div>
 <div class="desk-link" id="deskLink" role="status" aria-live="polite" hidden></div>
-<script src="config.js?v=my20"></script>
-<script src="gs.js?v=my20"></script>
-<script src="core.js?v=my20"></script>
-<script src="bridge.js?v=my20"></script>
-<script src="app.js?v=my20"></script>
+<script src="config.js?v=my21"></script>
+<script src="gs.js?v=my21"></script>
+<script src="core.js?v=my21"></script>
+<script src="bridge.js?v=my21"></script>
+<script src="app.js?v=my21"></script>
 </body>
 </html>
