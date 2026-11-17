@@ -82,7 +82,8 @@
 
   // ── 구글 로그인 (토큰은 1시간짜리. 다 되면 화면을 한 번 누를 때 조용히 새로 받는다) ──
   var TOK = { t: '', exp: 0 }, TC = null, ASK = null, MODE = '';   // MODE: 'google' | 'demo'
-  try { TOK = JSON.parse(sessionStorage.getItem('desk-tok') || 'null') || TOK; } catch (e) {}
+  // 토큰은 이 컴퓨터에 1시간 동안 기억 (창을 닫았다 다시 열어도 로그인 창이 다시 뜨지 않게)
+  try { TOK = JSON.parse(sessionStorage.getItem('desk-tok') || localStorage.getItem('desk-tok') || 'null') || TOK; } catch (e) {}
   function tokenOk() { return TOK.t && Date.now() < TOK.exp - 120000; }
   function gis() {
     return new Promise(function (ok, no) {
@@ -98,14 +99,25 @@
         ASK = null;
         if (r.error || !google.accounts.oauth2.hasGrantedAllScopes(r, SCOPE)) return no(new Error(r.error === 'access_denied' || !r.error ? '시트 권한을 허락해야 쓸 수 있어요.' : '로그인하지 못했어요: ' + r.error));
         TOK = { t: r.access_token, exp: Date.now() + (Number(r.expires_in) || 3600) * 1000 };
-        try { sessionStorage.setItem('desk-tok', JSON.stringify(TOK)); } catch (e) {}
-        linkState(); ok(TOK.t); kick();
+        try { sessionStorage.setItem('desk-tok', JSON.stringify(TOK)); localStorage.setItem('desk-tok', JSON.stringify(TOK)); } catch (e) {}
+        linkState(); ok(TOK.t); kick(); refreshLater();
+        // 다음부터 계정 고르는 창을 건너뛰도록 선생님 계정 주소를 기억
+        if (!ls('desk-email')) fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)', { headers: { Authorization: 'Bearer ' + TOK.t } }).then(function (x) { return x.json(); }).then(function (j) { if (j && j.user && j.user.emailAddress) ls('desk-email', j.user.emailAddress); }).catch(function () {});
       };
       TC.error_callback = function (e) { ASK = null; no(new Error(e && e.type === 'popup_closed' ? '로그인 창이 닫혔어요.' : '로그인 창을 열지 못했어요. 팝업 차단을 풀어 주세요.')); };
-      TC.requestAccessToken({ prompt: prompt == null ? '' : prompt });
+      var em = ls('desk-email'), cfg = { prompt: prompt == null ? '' : prompt };
+      if (em) { cfg.login_hint = em; cfg.hint = em; }
+      TC.requestAccessToken(cfg);
     });
     return ASK;
   }
+  // 토큰이 끝나기 5분 전에 미리 새로 받는다 (팝업이 허용돼 있으면 작은 창이 잠깐 떴다 저절로 닫힘)
+  var RFT = null;
+  function refreshLater() {
+    clearTimeout(RFT); if (MODE !== 'google' || !TOK.exp) return;
+    RFT = setTimeout(function () { if (MODE === 'google' && !ASK && !/[?&]teacher\b/.test(location.search)) askToken('').catch(function () {}); }, Math.max(60000, TOK.exp - Date.now() - 5 * 60000));
+  }
+  if (TOK.t) setTimeout(refreshLater, 3000);
   // 토큰이 곧 끝나면, 누군가 화면을 누르는 순간(팝업이 허락되는 때)에 미리 새로 받는다
   document.addEventListener('click', function () { if (MODE === 'google' && !tokenOk() && !ASK) askToken('').catch(function () {}); }, true);
   var backend = {
@@ -309,7 +321,7 @@
   }
   function signOut() {
     try { if (TOK.t && G.google.accounts) google.accounts.oauth2.revoke(TOK.t, function () {}); } catch (e) {}
-    TOK = { t: '', exp: 0 }; try { sessionStorage.removeItem('desk-tok'); } catch (e) {}
+    TOK = { t: '', exp: 0 }; try { sessionStorage.removeItem('desk-tok'); localStorage.removeItem('desk-tok'); localStorage.removeItem('desk-email'); } catch (e) {}
     ls('desk-sheet', null); ls('classdesk-cache', null); ls('classdesk-tpw', null);
     location.href = BASE;
   }
