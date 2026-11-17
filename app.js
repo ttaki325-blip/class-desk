@@ -536,7 +536,9 @@
       MODE === "name" ? (function () { var k = Object.keys(mk.name || {}).length, day = mk.nameDay || 0, R = D.thermo.rules || {};
         return '<span>지금 수업방해 <b class="num">' + k + "</b>명" + (k ? ' · 쉬는 시간 <b class="num">−' + k + "</b>분" : "") + "</span>" +
           (R.noName ? '<span class="nmhint">' + (day ? "오늘 " + day + "번 · 온도계가 오르지 않아요" : "이대로 " + esc(R.cut || "14:30") + "까지 가면 온도계 +" + R.noName + "도") + "</span>" : "") +
-          (TPW ? (k ? '<button class="btn sm nmreset" id="nmReset">교시 끝 · 리셋</button>' : "") : '<span class="nmhint">선택 · 취소는 선생님만</span>'); })() :
+          (k ? '<span class="nmhint">교시가 끝나면 저절로 리셋돼요</span>' : "") +
+          (NMDEL ? '<span class="nmhint nmdelhint">지울 친구 번호를 누르세요</span><button class="btn nmreset" id="nmDelEnd">다 지웠어요</button>' :
+            TPW ? (k ? '<button class="btn nmdel" id="nmDel">기록 지우기</button>' : "") : '<span class="nmhint">선택 · 취소는 선생님만</span>'); })() :
       MODE === "talk" ? '<span>오늘 발표 <b class="num">' + talkTotal + "</b>번 · 손 든 친구 <b class='num'>" + Object.keys(mk.talk).length + "</b>명</span>" :
       MODE === "feel" ? '<span>내 번호를 누르고 마음 색을 골라요 · 마음 나눈 친구 <b class="num">' + Object.keys(mk.feel || {}).length + "</b> / " + n + "</span>" :
       "<span>내 번호를 누르면 아이디와 비밀번호 힌트가 30초 동안 보여요</span>";
@@ -550,15 +552,12 @@
       var on = MODE === "milk" ? mk.milk[s.no] : MODE === "done" ? mk.done[s.no] : MODE === "role" ? mk.role[s.no] : MODE === "name" ? (mk.name || {})[s.no] : MODE === "feel" ? (mk.feel || {})[s.no] : 0, talk = mk.talk[s.no] || 0;
       return '<button class="nb' + (on ? " on" : "") + '" data-no="' + s.no + '" aria-label="' + esc(label(s)) + '">' + numHTML(s) +
         (MODE === "role" && s.role ? '<span class="rl">' + esc(s.role) + "</span>" : "") +
-        (MODE === "talk" ? '<span class="stars num' + (talk ? " has" : "") + '">' + talk + "</span>" : '<span class="mark">' + ico(MODE === "feel" ? "heart" : MODE === "name" ? "x" : "check") + "</span>") + "</button>";
+        (MODE === "talk" ? '<span class="stars num' + (talk ? " has" : "") + '">' + talk + "</span>" : '<span class="mark">' + ico(MODE === "feel" ? "heart" : MODE === "name" ? "x" : "check") + "</span>") + (MODE === "name" && NMDEL && on ? '<span class="nmdelx">지우기</span>' : "") + "</button>";
     }).join("");
   }
   document.addEventListener("click", function (e) {
-    if (e.target.closest("#nmReset")) {
-      if (needTeacher()) return; var k = Object.keys(D.marks.name || {}).length;
-      write("nameReset", [TPW], { busy: "수업방해 리셋 중", msg: k + "명 리셋 · 기록은 그대로 남아요", mut: function (d) { d.marks.name = {}; } });
-      return;
-    }
+    if (e.target.closest("#nmDel")) { if (needTeacher()) return; NMDEL = true; drawPanel(); return; }
+    if (e.target.closest("#nmDelEnd")) { NMDEL = false; drawPanel(); return; }
     var t = e.target.closest("[data-mode]"); if (t) { MODE = t.dataset.mode; drawPanel(); return; }
     var b = e.target.closest(".nb"); if (b && D) { tapNo(Number(b.dataset.no), b); return; }
   });
@@ -577,11 +576,13 @@
     if (MODE === "name") {
       if (needTeacher()) return;
       var onN = !(mk.name || {})[no], pl = periodNow(), lab = pl.cur ? pl.cur.p.n + "교시" : (function () { var last = null, m = new Date().getHours() * 60 + new Date().getMinutes(); D.tt.periods.forEach(function (p) { if (toMin(String(p.time).split("-")[0]) <= m) last = p; }); return last ? last.n + "교시 뒤" : "수업 전"; })();
-      if (onN) toast(who + " 수업방해", function () {
+      if (NMDEL) {
+        if (onN) { toast("빨간 칸(선택된 친구)만 지울 수 있어요"); return; }
         write("nameUndo", [TPW, no], { msg: who + " 수업방해 기록을 지웠어요",
-          mut: function (d) { if (d.marks.name) delete d.marks.name[no]; d.marks.nameDay = Math.max(0, (d.marks.nameDay || 1) - 1); } });
-      }, "실수였어요 · 기록 지우기", 10000);
-      else toast(who + " 해제 · 기록은 남아요");
+          mut: function (d) { if (d.marks.name) delete d.marks.name[no]; d.marks.nameDay = Math.max(0, (d.marks.nameDay || 1) - 1); if (!Object.keys(d.marks.name || {}).length) NMDEL = false; } });
+        return;
+      }
+      toast(onN ? who + " 수업방해" : who + " 해제 · 기록은 남아요");
       write("nameMark", [TPW, no, lab], {
         mut: function (d) { d.marks.name = d.marks.name || {}; if (onN) { d.marks.name[no] = 1; d.marks.nameDay = (d.marks.nameDay || 0) + 1; } else delete d.marks.name[no]; },
         after: function (r) { if (r && r.undone) { toast("오늘 '수업방해 없는 날' +" + r.undone + "도를 되돌렸어요"); call("getAll", [], function () { syncState(); }, true); } } });
@@ -2372,6 +2373,12 @@
 
   // 발표 뽑기 (크게) ------------------------------------------------------------
   var PK = { k: 1, last: [], sex: "" };
+  var NMDEL = false;   // 수업방해 '기록 지우기' 모드
+  // 교시가 끝나면 선택된 친구를 저절로 리셋 (바탕화면 창에서 30초마다 확인, 기록은 남음)
+  setInterval(function () {
+    if (TWIN || !D || !Object.keys((D.marks && D.marks.name) || {}).length || busyNow()) return;
+    write("nameAutoReset", [], { mut: function () {}, after: function (r) { if (r && r.n) { NMDEL = false; call("getAll", [], function () { syncState(); toast("교시가 끝나서 수업방해를 리셋했어요 · 기록은 남아요"); }, true); } } });
+  }, 30 * 1000);
   function pickTool() { pickDraw(); }
   function pickDraw() {
     var left = D.students.length - (PEX ? picked().length : 0);
