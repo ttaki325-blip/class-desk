@@ -717,7 +717,27 @@
   document.querySelector(".c-clock").addEventListener("click", function (e) { if (!EDIT && !e.target.closest(".tools")) openClock(); });
   $("bcClose").onclick = function () { $("bigClock").classList.remove("on"); };
   addEventListener("keydown", function (e) { if (e.key === "Escape") ["bigClock", "bigTimer"].forEach(function (id) { $(id).classList.remove("on"); }); });
-  $("tBig").onclick = function () { $("bigTimer").classList.add("on"); tmDraw(); };
+  // 타이머: 크게(화면 가득) ↔ 중간 크기(위쪽에 떠 있는 창, 끌어서 옮기기). 마지막 크기를 기억
+  function tmSize(mid) {
+    var b = $("bigTimer"); b.classList.toggle("mid", !!mid); $("bigSize").textContent = mid ? "크게" : "중간 크기로"; ls("classdesk-tmsize", mid ? "mid" : "full");
+    var pos = ls("classdesk-tmpos"); if (mid && pos) { try { var p = JSON.parse(pos); b.style.setProperty("--ml", Math.max(0, Math.min(innerWidth - 200, p[0])) + "px"); b.style.setProperty("--mt", Math.max(0, Math.min(innerHeight - 120, p[1])) + "px"); } catch (e) {} }
+  }
+  $("tBig").onclick = function () { tmSize(ls("classdesk-tmsize") === "mid"); $("bigTimer").classList.add("on"); tmDraw(); };
+  $("bigSize").onclick = function () { tmSize(!$("bigTimer").classList.contains("mid")); };
+  (function () {
+    var b = $("bigTimer"), st = null;
+    b.addEventListener("pointerdown", function (e) {
+      if (!b.classList.contains("mid") || e.target.closest("button")) return;
+      var r = b.getBoundingClientRect(); st = { x: e.clientX - r.left, y: e.clientY - r.top, id: e.pointerId }; b.classList.add("drag"); try { b.setPointerCapture(e.pointerId); } catch (x) {}
+    });
+    b.addEventListener("pointermove", function (e) {
+      if (!st) return;
+      var x = Math.max(0, Math.min(innerWidth - b.offsetWidth, e.clientX - st.x)), y = Math.max(0, Math.min(innerHeight - b.offsetHeight, e.clientY - st.y));
+      b.style.setProperty("--ml", x + "px"); b.style.setProperty("--mt", y + "px");
+    });
+    var end = function () { if (!st) return; st = null; b.classList.remove("drag"); var r = b.getBoundingClientRect(); ls("classdesk-tmpos", JSON.stringify([Math.round(r.left), Math.round(r.top)])); };
+    b.addEventListener("pointerup", end); b.addEventListener("pointercancel", end);
+  })();
   $("bGo").onclick = function () { $("tGo").click(); };
   $("bReset").onclick = function () { $("tReset").click(); };
   $("bSnd").onclick = function () { $("sndBtn").click(); };
@@ -848,7 +868,7 @@
   $("dSheet").onclick = function () { if (D && D.sheetUrl) { window.open(D.sheetUrl, "_blank"); toast("시트는 선생님만 보는 곳이에요. 학생에게 공유하지 마세요"); } };
   // 창 바깥(어두운 바탕)을 누르면 닫기 — 화면 잠금 코드 창은 빼고
   document.querySelectorAll(".modal").forEach(function (m) { m.addEventListener("click", function (e) { if (e.target === m && m.id !== "lock") { closeModal(m.id); if (m.id === "acctM") clearInterval(showAccount._t); } }); });
-  ["bigClock", "bigTimer"].forEach(function (id) { $(id).addEventListener("click", function (e) { if (e.target === $(id) || e.target.classList.contains("bclock")) $(id).classList.remove("on"); }); });
+  ["bigClock", "bigTimer"].forEach(function (id) { $(id).addEventListener("click", function (e) { if ($(id).classList.contains("mid")) return; if (e.target === $(id) || e.target.classList.contains("bclock")) $(id).classList.remove("on"); }); });
   $("dClose").onclick = closeDrawer;
   $("dMsg").onclick = function () { DTAB = "msg"; drawDrawer(); };
 
