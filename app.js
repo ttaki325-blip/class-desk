@@ -527,12 +527,15 @@
     if (!modes.some(function (m) { return m.id === MODE; })) MODE = modes[0].id;   // 고른 탭을 껐으면 남은 첫 탭으로
     var M = modes.filter(function (m) { return m.id === MODE; })[0], mk = D.marks, n = D.students.length;
     $("panel").style.setProperty("--pc", M.c);
-    var cnt = MODE === "milk" ? Object.keys(mk.milk).length : MODE === "done" ? Object.keys(mk.done).length : MODE === "role" ? Object.keys(mk.role).length : 0;
+    var TWD = "일월화수목금토".charAt(new Date(D.today + "T12:00:00").getDay());
+    var dueToday = function (s) { return !s.days || s.days.indexOf(TWD) >= 0; };
+    var roleDue = D.students.filter(function (s) { return dueToday(s) && (s.role || !D.students.some(function (x) { return x.role; })); });
+    var cnt = MODE === "milk" ? Object.keys(mk.milk).length : MODE === "done" ? Object.keys(mk.done).length : MODE === "role" ? roleDue.filter(function (s) { return mk.role[s.no]; }).length : 0;
     var talkTotal = Object.keys(mk.talk).reduce(function (a, k) { return a + mk.talk[k]; }, 0);
     var stat = MODE === "milk" ? '<span>마신 친구 <b class="num">' + cnt + "</b> / " + n + '</span><span class="pbar"><i style="width:' + Math.round(cnt / n * 100) + '%"></i></span>' :
       MODE === "done" ? (TPW ? '<input class="act-in" id="actIn" maxlength="40" value="' + esc(mk.act || "") + '" placeholder="지금 활동 이름" aria-label="지금 활동 이름 (고치고 Enter)" title="고치고 Enter를 누르면 바뀌어요">' :
         '<span class="act">' + ico("note") + esc(mk.act || "지금 활동") + "</span>") + '<span>다 한 친구 <b class="num">' + cnt + "</b> / " + n + '</span><span class="pbar"><i style="width:' + Math.round(cnt / n * 100) + '%"></i></span>' :
-      MODE === "role" ? '<span>역할 다 한 친구 <b class="num">' + cnt + "</b> / " + n + '</span><span class="pbar"><i style="width:' + Math.round(cnt / n * 100) + '%"></i></span>' :
+      MODE === "role" ? '<span>오늘 역할 있는 친구 <b class="num">' + cnt + "</b> / " + roleDue.length + '</span><span class="pbar"><i style="width:' + Math.round(cnt / Math.max(1, roleDue.length) * 100) + '%"></i></span>' + (roleDue.length < n ? '<span class="nmhint" style="color:var(--sub)">흐린 칸은 오늘 쉬는 날</span>' : "") :
       MODE === "name" ? (function () { var k = Object.keys(mk.name || {}).length, day = mk.nameDay || 0, R = D.thermo.rules || {};
         return '<span>지금 수업방해 <b class="num">' + k + "</b>명" + (k ? ' · 쉬는 시간 <b class="num">−' + k + "</b>분" : "") + "</span>" +
           (R.noName ? '<span class="nmhint">' + (day ? "오늘 " + day + "번 · 온도계가 오르지 않아요" : "이대로 " + esc(R.cut || "14:30") + "까지 가면 온도계 +" + R.noName + "도") + "</span>" : "") +
@@ -549,8 +552,9 @@
     $("nums").style.gridTemplateColumns = "repeat(" + Math.ceil(n / rows) + ",minmax(0,1fr))";
     $("nums").innerHTML = D.students.map(function (s) {
       var on = MODE === "milk" ? mk.milk[s.no] : MODE === "done" ? mk.done[s.no] : MODE === "role" ? mk.role[s.no] : MODE === "name" ? (mk.name || {})[s.no] : MODE === "feel" ? (mk.feel || {})[s.no] : 0, talk = mk.talk[s.no] || 0;
-      return '<button class="nb' + (on ? " on" : "") + '" data-no="' + s.no + '" aria-label="' + esc(label(s)) + '">' + numHTML(s) +
-        (MODE === "role" && s.role ? '<span class="rl">' + esc(s.role) + "</span>" : "") +
+      var rest = MODE === "role" && !dueToday(s) && !on;
+      return '<button class="nb' + (on ? " on" : "") + (rest ? " rest" : "") + '" data-no="' + s.no + '" aria-label="' + esc(label(s)) + '">' + numHTML(s) +
+        (MODE === "role" && s.role ? '<span class="rl">' + esc(rest ? s.role + " · " + s.days.join("·") : s.role) + "</span>" : "") +
         (MODE === "talk" ? '<span class="stars num' + (talk ? " has" : "") + '">' + talk + "</span>" : '<span class="mark">' + ico(MODE === "feel" ? "heart" : MODE === "name" ? "x" : "check") + "</span>") + "</button>";
     }).join("");
   }

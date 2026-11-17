@@ -953,7 +953,7 @@ function getAll(code) {
   setup();
   const s = settings_(), today = today_(), n = studentCount_();
   const names = studentMap_(), students = [], md = today.slice(5);
-  for (let i = 1; i <= n; i++) students.push({ no: i, name: names[i] ? names[i].name : '', role: names[i] ? names[i].role : '', sex: names[i] ? names[i].sex : '' });
+  for (let i = 1; i <= n; i++) students.push({ no: i, name: names[i] ? names[i].name : '', role: names[i] ? names[i].role : '', sex: names[i] ? names[i].sex : '', days: names[i] ? names[i].days : null });
   const act = String(s['지금 활동'] || '');
   const milk = {}, done = {}, role = {}, talk = {}, feel = {}, named = {}; let namedDay = 0;
   tail_('기록', 1500).forEach(function (r) {
@@ -1528,9 +1528,26 @@ function mainColor_() { const c = String(settings_()['대표 색'] || '').trim()
 function list_(key, def) { return String(settings_()[key] || def).split(',').map(function (x) { return x.trim(); }).filter(String); }
 function studentCount_() { return Math.max(1, Math.min(40, Number(settings_()['학생 수']) || 25)); }
 function sex_(v) { v = String(v || '').trim().toLowerCase(); return /^(남|m|boy|b)/.test(v) ? '남' : /^(여|f|girl|g|w)/.test(v) ? '여' : ''; }
+// 1인 1역 활동 주기: '매일' → null(매일), '화, 목' · '월수금' → ['화','목'] … 이해 못 하면 undefined
+function roleDays_(v) {
+  v = String(v == null ? '' : v).trim(); if (!v) return undefined;
+  if (/^(매일|날마다|매일매일|월\s*[~-]\s*금)$/.test(v)) return null;
+  const t = v.replace(/요일/g, '').replace(/[\s,·/、.]+/g, '');
+  if (!/^[월화수목금]+$/.test(t)) return undefined;
+  const out = []; '월화수목금'.split('').forEach(function (d) { if (t.indexOf(d) >= 0) out.push(d); });
+  return out.length === 5 ? null : out;
+}
+// 시트에서 주기 칸 찾기: 제목에 '주기'·'요일'이 있는 칸 → 없으면 그 줄에서 '매일'·'화, 목' 꼴인 칸
+function roleDaysOf_(r) {
+  const keys = Object.keys(r).filter(function (k) { return k !== '_row'; });
+  const hk = keys.filter(function (k) { return /주기|요일/.test(k); })[0];
+  if (hk) { const d = roleDays_(r[hk]); return d === undefined ? null : d; }
+  for (let i = 0; i < keys.length; i++) { if (/^(번호|이름|1인 1역|사용|생일)$/.test(keys[i])) continue; const d = roleDays_(r[keys[i]]); if (d !== undefined) return d; }
+  return null;
+}
 function studentMap_() {
   const m = {};
-  rows_('학생').forEach(function (r) { if (r['사용'] !== '아니오' && Number(r['번호'])) m[Number(r['번호'])] = { name: r['이름'], role: r['1인 1역'], bday: r['생일'] || '', sex: sex_(r['성별']) }; });
+  rows_('학생').forEach(function (r) { if (r['사용'] !== '아니오' && Number(r['번호'])) m[Number(r['번호'])] = { name: r['이름'], role: r['1인 1역'], bday: r['생일'] || '', sex: sex_(r['성별']), days: roleDaysOf_(r) }; });
   return m;
 }
 // '3/5', '03-05', '2014-03-05', '3월 5일' → '03-05'
@@ -1573,16 +1590,21 @@ function dayLog_() {
   return by;
 }
 // 한 주 1인 1역 비율: (수업한 날마다 역할 다 한 학생 수 합) ÷ (학생 수 × 수업한 날 수)
+// 한 주 1인 1역 비율: 수업한 날마다 '그 요일에 역할이 있는 학생' 중 다 한 학생 수를 더해 나눈다
+// (역할 칸이 비어 있는 학생은 빼고, 주기가 '화, 목'이면 화 · 목에만 센다)
 function roleWeek_(monday, upto, withToday, log) {
   log = log || dayLog_();
-  const n = Object.keys(studentMap_()).length || studentCount_();
-  let days = 0, hit = 0;
+  const sm = studentMap_(), all = Object.keys(sm).map(Number), withRole = all.filter(function (no) { return String(sm[no].role || '').trim(); });
+  const pool = withRole.length ? withRole : (all.length ? all : Array.from({ length: studentCount_() }, function (_, i) { return i + 1; }));
+  let days = 0, hit = 0, den = 0;
   for (let i = 0; i < 5; i++) {
     const d = addDays_(monday, i); if (d > upto || (!withToday && d === upto)) break;
     const o = log[d]; if (!o || !o.any) continue;
-    days++; hit += Object.keys(o.role).length;
+    const wd = '월화수목금'.charAt(i), due = pool.filter(function (no) { const ds = sm[no] && sm[no].days; return !ds || ds.indexOf(wd) >= 0; });
+    if (!due.length) continue;
+    days++; den += due.length; hit += due.filter(function (no) { return o.role[no]; }).length;
   }
-  return { monday: monday, days: days, pct: days ? Math.round(hit / (n * days) * 100) : 0, need: thermoRules_().rolePct };
+  return { monday: monday, days: days, done: hit, due: den, pct: den ? Math.round(hit / den * 100) : 0, need: thermoRules_().rolePct };
 }
 function thermoAdd_(delta, why) {
   const th = tail_('온도계', 1), total = Math.max(0, (th.length ? Number(th[0]['누적']) || 0 : 0) + delta);
