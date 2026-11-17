@@ -227,10 +227,10 @@
   $("codeGo").onclick = function () { CODE = $("codeIn").value.trim(); ls("classdesk-code", CODE); ls("classdesk-cache", null); closeModal("lock"); load(true); };
   $("codeIn").addEventListener("keydown", function (e) { if (e.key === "Enter") $("codeGo").click(); });
 
-  function toast(m, undo) {
+  function toast(m, undo, label, ms) {
     var t = $("toast"), u = $("toastUndo");
-    $("toastMsg").textContent = m; u.hidden = !undo; u.onclick = function () { t.classList.remove("on"); undo(); };
-    t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(function () { t.classList.remove("on"); }, undo ? 5000 : 2600);
+    $("toastMsg").textContent = m; u.hidden = !undo; u.textContent = label || "되돌리기"; u.onclick = function () { t.classList.remove("on"); undo(); };
+    t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(function () { t.classList.remove("on"); }, ms || (undo ? 5000 : 2600));
   }
   function openModal(id) { $(id).classList.add("on"); }
   function closeModal(id) { $(id).classList.remove("on"); if (id === "tlock") { TGO = ""; $("tlock").classList.remove("over-lock"); } }
@@ -577,7 +577,12 @@
     if (MODE === "name") {
       if (needTeacher()) return;
       var onN = !(mk.name || {})[no], pl = periodNow(), lab = pl.cur ? pl.cur.p.n + "교시" : (function () { var last = null, m = new Date().getHours() * 60 + new Date().getMinutes(); D.tt.periods.forEach(function (p) { if (toMin(String(p.time).split("-")[0]) <= m) last = p; }); return last ? last.n + "교시 뒤" : "수업 전"; })();
-      write("nameMark", [TPW, no, lab], { busy: onN ? who + " 수업방해 선택 중" : who + " 수업방해 취소 중", msg: onN ? who + " 수업방해" : who + " 수업방해 취소",
+      if (onN) toast(who + " 수업방해", function () {
+        write("nameUndo", [TPW, no], { msg: who + " 수업방해 기록을 지웠어요",
+          mut: function (d) { if (d.marks.name) delete d.marks.name[no]; d.marks.nameDay = Math.max(0, (d.marks.nameDay || 1) - 1); } });
+      }, "실수였어요 · 기록 지우기", 10000);
+      else toast(who + " 해제 · 기록은 남아요");
+      write("nameMark", [TPW, no, lab], {
         mut: function (d) { d.marks.name = d.marks.name || {}; if (onN) { d.marks.name[no] = 1; d.marks.nameDay = (d.marks.nameDay || 0) + 1; } else delete d.marks.name[no]; },
         after: function (r) { if (r && r.undone) { toast("오늘 '수업방해 없는 날' +" + r.undone + "도를 되돌렸어요"); call("getAll", [], function () { syncState(); }, true); } } });
       return;
