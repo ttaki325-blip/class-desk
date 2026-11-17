@@ -472,7 +472,7 @@
     $("trw").innerHTML = RW.map(function (r) { var st = T.total >= r.at ? "ok" : r === nx ? "next" : ""; return '<li class="' + st + '"><b class="num">' + r.at + "°</b><span>" + esc(r.name) + "</span>" + (st === "ok" ? ico("check") : "") + "</li>"; }).join("");
     var w = T.week, R = T.rules || {}, nm = Object.keys(D.marks.name || {}).length, nd = D.marks.nameDay || 0, au = [];
     if (R.noName) au.push('<span class="' + (nd ? "bad" : "good") + '">' + (nd ? "오늘 수업방해 " + nd + "번" + (nm ? " · 쉬는 시간 −" + nm + "분" : "") : "수업방해 0번 · " + esc(R.cut) + " +" + R.noName + "°") + "</span>");
-    if (R.role && w) au.push('<span class="' + (w.days && w.pct >= w.need ? "good" : "") + '">이번 주 1인 1역 ' + (w.days ? '<b class="num">' + w.pct + "%</b>/" + w.need + "% (" + w.days + "일)" : "목표 " + w.need + "% · 오늘 " + esc(R.cut || "14:30") + "부터 계산") + "</span>");
+    if (R.role && w && w.due) au.push('<span class="' + (w.pct >= w.need ? "good" : "") + '">이번 주 1인 1역 <b class="num">' + w.done + "/" + w.due + "</b>칸 (" + w.pct + "%) · 목표 " + Math.ceil(w.due * w.need / 100) + "칸</span>");
     $("tauto").innerHTML = au.join("");
     if (THLAST != null && !TWIN && T.total > THLAST) { var got = RW.filter(function (r) { return THLAST < r.at && T.total >= r.at; }); if (got.length) { var g = got[got.length - 1]; setTimeout(function () { party(g.at + "도 달성! 🎁 " + g.name); }, 700); } }
     THLAST = T.total;

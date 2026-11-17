@@ -1610,23 +1610,24 @@ function dayLog_() {
   tail_('기록', 6000).forEach(function (r) { const d = String(r['날짜']); if (!d) return; const o = by[d] || (by[d] = { any: 0, name: 0, role: {} }); o.any++; if (r['종류'] === '수업방해' || r['종류'] === '이름') o.name++; if (r['종류'] === '1인1역') o.role[Number(r['번호'])] = 1; });
   return by;
 }
-// 한 주 1인 1역 비율: (수업한 날마다 역할 다 한 학생 수 합) ÷ (학생 수 × 수업한 날 수)
-// 한 주 1인 1역 비율: 수업한 날마다 '그 요일에 역할이 있는 학생' 중 다 한 학생 수를 더해 나눈다
-// · 1인 1역 체크가 하나도 없는 날은 빼고 · 오늘은 정산 시각이 지난 뒤부터 넣는다
-// (역할 칸이 비어 있는 학생은 빼고, 주기가 '화, 목'이면 화 · 목에만 센다)
+// 한 주 1인 1역 비율 = 지금까지 채운 칸 ÷ 이번 주 전체 칸
+// · 전체 칸 = 1인 1역을 쓰기 시작한 날부터 금요일까지, 날마다 '그 요일에 역할이 있는 학생 수'를 더한 값 (앞으로 남은 날 포함)
+// · 지난 평일 중 번호판 기록이 하나도 없는 날(쉬는 날)은 빼고, 쓰기 시작하기 전 날도 뺀다
 function roleWeek_(monday, upto, withToday, log) {
   log = log || dayLog_();
-  const sm = studentMap_(), all = Object.keys(sm).map(Number), withRole = all.filter(function (no) { return String(sm[no].role || '').trim(); });
+  const today = today_(), sm = studentMap_(), all = Object.keys(sm).map(Number), withRole = all.filter(function (no) { return String(sm[no].role || '').trim(); });
   const pool = withRole.length ? withRole : (all.length ? all : Array.from({ length: studentCount_() }, function (_, i) { return i + 1; }));
-  let days = 0, hit = 0, den = 0;
+  let days = 0, hit = 0, den = 0, started = false;
   for (let i = 0; i < 5; i++) {
-    const d = addDays_(monday, i); if (d > upto || (!withToday && d === upto)) break;
-    const o = log[d]; if (!o || !o.any) continue;
-    if (!Object.keys(o.role).length) continue;                       // 1인 1역을 하나도 체크하지 않은 날(안 쓴 날)은 세지 않는다
-    if (d === today_() && now_().slice(11, 16) < thermoRules_().cut) continue;   // 오늘은 정산 시각(14:30)이 지나야 센다
-    const wd = '월화수목금'.charAt(i), due = pool.filter(function (no) { const ds = sm[no] && sm[no].days; return !ds || ds.indexOf(wd) >= 0; });
+    const d = addDays_(monday, i), o = log[d], wd = '월화수목금'.charAt(i);
+    const used = o && Object.keys(o.role).length;
+    if (used) started = true;
+    if (d < today) { if (!started || !o || !o.any) continue; }   // 지난 날: 시작 전이거나 쉬는 날이면 빼기
+    else if (!started && d > today && !(log[today] && Object.keys(log[today].role).length)) { /* 아직 시작 전이어도 오늘부터 앞으로는 센다 */ }
+    const due = pool.filter(function (no) { const ds = sm[no] && sm[no].days; return !ds || ds.indexOf(wd) >= 0; });
     if (!due.length) continue;
-    days++; den += due.length; hit += due.filter(function (no) { return o.role[no]; }).length;
+    days++; den += due.length;
+    if (o && d <= today) hit += due.filter(function (no) { return o.role[no]; }).length;
   }
   return { monday: monday, days: days, done: hit, due: den, pct: den ? Math.round(hit / den * 100) : 0, need: thermoRules_().rolePct };
 }
