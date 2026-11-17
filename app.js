@@ -144,6 +144,8 @@
     } catch (e) {}
   }
   try { if (window.speechSynthesis) speechSynthesis.getVoices(); } catch (e) {}
+  // 칠판을 한 번이라도 누르면 소리 장치를 깨워 둔다 (자동으로 뜬 타이머도 끝날 때 울리도록)
+  document.addEventListener("pointerdown", function () { try { sndOut(); } catch (e) {} }, { passive: true });
 
   // ── 저장 중 표시: 1초쯤 빙글빙글 → 시트에 적히면 체크 → 스르륵 (화면을 막지 않는다) ──
   var FL = null, FLT = null, BHIDE = null;
@@ -707,7 +709,7 @@
   }
   setInterval(function () {
     if (!TM.run) return; TM.left = Math.max(0, Math.ceil((TM.end - Date.now()) / 1000)); tmDraw();
-    if (TM.total > 75 && TM.left <= 60 && TM.left > 50 && !TM.warned) { TM.warned = true; tmSave(); if (chimeOn()) { chime([880, 1175], true); setTimeout(function () { chime([880, 1175], true); }, 900); } toast("1분 남았어요"); }
+    if (TM.total > 75 && TM.left <= 60 && TM.left > 50 && !TM.warned) { TM.warned = true; tmSave(); toast("1분 남았어요"); }   // 1분 전은 소리 없이 글자만
     if (TM.left <= 0) tmDone();
   }, 250);
   $("tGo").onclick = function () { sndOut(); if (TM.left > 60) TM.warned = false; if (TM.run) { TM.left = Math.max(1, Math.ceil((TM.end - Date.now()) / 1000)); TM.run = false; } else { TM.end = Date.now() + TM.left * 1000; TM.run = true; } tmSave(); tmDraw(); };
