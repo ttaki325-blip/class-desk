@@ -1612,6 +1612,7 @@ function dayLog_() {
 }
 // 한 주 1인 1역 비율: (수업한 날마다 역할 다 한 학생 수 합) ÷ (학생 수 × 수업한 날 수)
 // 한 주 1인 1역 비율: 수업한 날마다 '그 요일에 역할이 있는 학생' 중 다 한 학생 수를 더해 나눈다
+// · 1인 1역 체크가 하나도 없는 날은 빼고 · 오늘은 정산 시각이 지난 뒤부터 넣는다
 // (역할 칸이 비어 있는 학생은 빼고, 주기가 '화, 목'이면 화 · 목에만 센다)
 function roleWeek_(monday, upto, withToday, log) {
   log = log || dayLog_();
@@ -1621,6 +1622,8 @@ function roleWeek_(monday, upto, withToday, log) {
   for (let i = 0; i < 5; i++) {
     const d = addDays_(monday, i); if (d > upto || (!withToday && d === upto)) break;
     const o = log[d]; if (!o || !o.any) continue;
+    if (!Object.keys(o.role).length) continue;                       // 1인 1역을 하나도 체크하지 않은 날(안 쓴 날)은 세지 않는다
+    if (d === today_() && now_().slice(11, 16) < thermoRules_().cut) continue;   // 오늘은 정산 시각(14:30)이 지나야 센다
     const wd = '월화수목금'.charAt(i), due = pool.filter(function (no) { const ds = sm[no] && sm[no].days; return !ds || ds.indexOf(wd) >= 0; });
     if (!due.length) continue;
     days++; den += due.length; hit += due.filter(function (no) { return o.role[no]; }).length;
