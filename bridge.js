@@ -394,6 +394,14 @@
       $('dsCont').onclick = function () { this.disabled = true; askToken('').then(function () { start(saved); }).catch(function (e) { welcome(e.message); }); };
       $('dsOther').onclick = function () { ls('desk-sheet', null); welcome(); };
       $('dsCont').focus();
+      // 저절로 이어 열기: 이 사이트에 팝업이 허용돼 있으면 누르지 않아도 구글 로그인이 이어진다 (막히면 단추를 그대로 둔다)
+      setTimeout(function () {
+        var b = $('dsCont'); if (!b || b.disabled) return; b.disabled = true; b.lastChild.textContent = '구글로 이어서 여는 중…';
+        askToken('').then(function () { start(saved); }).catch(function () {
+          var b2 = $('dsCont'); if (!b2) return; b2.disabled = false; b2.lastChild.textContent = '구글로 이어서 열기';
+          var p = document.querySelector('.ds-lead'); if (p) p.innerHTML = '지난번에 쓰던 학급 시트로 이어서 열어요.<br><small>주소창 오른쪽에서 이 사이트 <b>팝업을 \'항상 허용\'</b>하면 다음부터 누르지 않아도 저절로 열려요.</small>';
+        });
+      }, 600);
     }
   } else if (/[?&]choose/.test(location.search) && tokenOk()) chooser();
   else welcome();
