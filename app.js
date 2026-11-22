@@ -54,6 +54,7 @@
     dicei: '<rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor"/>',
     trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20.5h7M10 17h4"/>',
     map: '<path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>',
+    qr: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 14h2M14 18h2M18 18h2v2M16 16h2v2"/>',
   };
   function ico(n) { return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' + (IC[n] || "") + "</svg>"; }
   function paintIcons(root) { (root || document).querySelectorAll("[data-i]").forEach(function (el) { if (!el.firstChild || !el.querySelector("svg")) el.insertAdjacentHTML("afterbegin", ico(el.dataset.i)); }); }
@@ -1935,11 +1936,56 @@
     ["order", "순서 정하기", "order", "#7566c0", "발표 · 급식 · 놀이 순서를 무작위로"],
     ["score", "모둠 점수판", "trophy", "#bd7440", "모둠마다 점수를 크게. 1등 모둠엔 왕관"],
     ["dice", "주사위", "dicei", "#7566c0", "1~3개를 데굴데굴. 합계까지"],
+    ["qr", "QR 만들기", "qr", "#1f6f5c", "주소를 넣으면 QR로. 칠판에 크게 띄워 디벗으로 찍어요"],
     ["voice", "목소리 크기", "sound", "#2e77c8", "0 조용히 ~ 4 발표 목소리. 활동마다 크게 띄워요"],
     ["read", "독서 · 명상", "book", "#5a7390", "숨쉬기 빛과 잔잔한 소리로 마음을 가라앉혀요"],
     ["timer", "큰 타이머", "timer", "#c9636d", "화면 가득 남은 시간. 끝나면 소리로 알려요"],
     ["clock", "큰 시계", "timer", "#35915a", "멀리서도 보이는 큰 시계와 지금 교시"]];
   var TOOL = "";
+  // ── QR 만들기: 주소 → QR (qrcode.js, MIT · Kazuhiko Arase). 최근 주소는 이 컴퓨터에 기억 ──
+  var QRS = { url: "", title: "" };
+  function qrList() { try { return JSON.parse(ls("classdesk-qr") || "[]"); } catch (e) { return []; } }
+  function qrFix(u) { u = String(u || "").trim(); if (/^[\w-]+(\.[\w-]+)+(\/|$|\?)/.test(u) && !/^[a-z]+:/i.test(u)) u = "https://" + u; return u; }
+  function qrSVG(text) {
+    try {
+      qrcode.stringToBytes = qrcode.stringToBytesFuncs["UTF-8"];
+      var q = qrcode(0, "M"); q.addData(text); q.make();
+      var n = q.getModuleCount(), m = 4, d = "";
+      for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (q.isDark(r, c)) d += "M" + (c + m) + " " + (r + m) + "h1v1h-1z";
+      return '<svg viewBox="0 0 ' + (n + m * 2) + " " + (n + m * 2) + '" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#fff"/><path d="' + d + '" fill="#111"/></svg>';
+    } catch (e) { return ""; }
+  }
+  function qrTool() {
+    var L = qrList(), svg = QRS.url ? qrSVG(QRS.url) : "";
+    $("tbb").innerHTML = '<div class="qr-wrap"><div class="qr-form">' +
+      '<label class="lp-f"><span>주소 (링크)</span><input class="field" id="qrUrl" placeholder="예: https://padlet.com/... 또는 forms.gle/..." value="' + esc(QRS.url) + '"></label>' +
+      '<label class="lp-f"><span>제목 (아이들에게 보일 글, 없어도 돼요)</span><input class="field" id="qrTitle" maxlength="40" placeholder="예: 오늘의 패들렛" value="' + esc(QRS.title) + '"></label>' +
+      '<div class="frow"><button class="btn" id="qrMake">QR 만들기</button>' + (svg ? '<button class="btn up" id="qrBigBtn">칠판에 크게 띄우기</button>' : "") + "</div>" +
+      (L.length ? '<div class="qr-recent"><b>최근에 만든 QR</b>' + L.map(function (x, i) { return '<span class="qr-chip"><button class="chip" data-qri="' + i + '">' + esc(x.title || x.url.replace(/^https?:\/\//, "").slice(0, 28)) + '</button><button class="qr-del" data-qrd="' + i + '" aria-label="지우기">×</button></span>'; }).join("") + "</div>" : "") +
+      '</div><div class="qr-prev">' + (svg ? svg + '<p class="muted">' + esc(QRS.url) + "</p>" : '<p class="muted">주소를 넣고 [QR 만들기]를 누르면<br>여기에 QR이 나와요</p>') + "</div></div>";
+  }
+  function qrMake(url, title) {
+    url = qrFix(url); if (!url) { toast("주소를 먼저 넣어 주세요"); return false; }
+    if (!qrSVG(url)) { toast("주소가 너무 길어서 QR로 만들 수 없어요"); return false; }
+    QRS.url = url; QRS.title = String(title || "").trim();
+    var L = qrList().filter(function (x) { return x.url !== url; }); L.unshift({ url: url, title: QRS.title }); ls("classdesk-qr", JSON.stringify(L.slice(0, 8)));
+    return true;
+  }
+  function qrBig() {
+    if (!QRS.url) return;
+    $("qrBigBox").innerHTML = (QRS.title ? '<h2 class="jua">' + esc(QRS.title) + "</h2>" : "") + '<div class="qrb-code">' + qrSVG(QRS.url) + '</div><p class="qrb-url">' + esc(QRS.url) + '</p><p class="qrb-help jua">📱 디벗 카메라로 찍어 보세요</p>';
+    $("qrBig").classList.add("on");
+  }
+  $("tbb").addEventListener("click", function (e) {
+    if (TOOL !== "qr") return; var t = e.target.closest("button"); if (!t) return;
+    if (t.id === "qrMake") { if (qrMake($("qrUrl").value, $("qrTitle").value)) qrTool(); return; }
+    if (t.id === "qrBigBtn") { qrBig(); return; }
+    if (t.dataset.qri != null) { var x = qrList()[Number(t.dataset.qri)]; if (x) { QRS.url = x.url; QRS.title = x.title || ""; qrTool(); } return; }
+    if (t.dataset.qrd != null) { var L = qrList(); L.splice(Number(t.dataset.qrd), 1); ls("classdesk-qr", JSON.stringify(L)); qrTool(); return; }
+  });
+  $("tbb").addEventListener("keydown", function (e) { if (TOOL === "qr" && e.key === "Enter" && !e.isComposing && (e.target.id === "qrUrl" || e.target.id === "qrTitle")) { e.preventDefault(); $("qrMake").click(); } });
+  $("qrBig").addEventListener("click", function (e) { if (e.target.id === "qrBig" || e.target.closest("#qrClose")) $("qrBig").classList.remove("on"); });
+  addEventListener("keydown", function (e) { if (e.key === "Escape") $("qrBig").classList.remove("on"); });
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
   function stepper(id, val) { return '<span class="step"><button data-st="' + id + '" data-d="-1" aria-label="줄이기">−</button><b class="num">' + val + '</b><button data-st="' + id + '" data-d="1" aria-label="늘리기">+</button></span>'; }
   function needTeacher() { if (TPW) return false; toast("시트에 저장은 선생님 모드에서 할 수 있어요"); openModal("tlock"); setTimeout(function () { $("tpw").focus(); }, 60); return true; }
@@ -1954,7 +2000,7 @@
     if (id === "read") { closeTools(); $("readBtn").click(); return; }
     if (id === "clock") { closeTools(); openClock(); return; }
     if (!t) { $("tbb").innerHTML = '<div class="tiles">' + TOOLS.filter(function (x) { return !isOff(x[1]); }).map(function (x) { return '<button class="tile" style="--tc:' + x[3] + '" data-tool="' + x[0] + '"><span class="ti">' + ico(x[2]) + '</span><b class="jua">' + x[1] + "</b><small>" + x[4] + "</small></button>"; }).join("") + "</div>"; return; }
-    ({ seat: seatTool, group: groupTool, ladder: ladderTool, wheel: wheelTool, pick: pickTool, order: orderTool, score: scoreTool, dice: diceTool, voice: voiceTool })[id]();
+    ({ seat: seatTool, group: groupTool, ladder: ladderTool, wheel: wheelTool, pick: pickTool, order: orderTool, score: scoreTool, dice: diceTool, voice: voiceTool, qr: qrTool })[id]();
   }
   $("toolBtn").onclick = function () { openTools(""); };
   $("tbClose").onclick = closeTools;
