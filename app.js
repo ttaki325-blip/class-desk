@@ -7,7 +7,7 @@
   CODE = ls("classdesk-code") || "";
   try { TPW = sessionStorage.getItem("classdesk-tpw") || ""; } catch (e) {}
   // 선생님 서랍 창(팝업)인지: 바탕화면에서 [선생님]을 누르면 따로 열린다. 아이들이 보는 칠판에는 서랍이 뜨지 않는다
-  var TWIN = /[?&]teacher\b/.test(location.search), TW = null, TOP = window.TEACHER_OPENER || null;
+  var TWIN = /[?&](teacher|tools)\b/.test(location.search), TOOLWIN = /[?&]tools\b/.test(location.search), TW = null, TB = null, TOP = window.TEACHER_OPENER || null;
   if (TWIN && TOP) { try { TPW = TOP.TPW || TPW; CODE = TOP.CODE || CODE; } catch (e) {} }
 
   // ── 선 아이콘 (이모지 대신) ──
@@ -894,19 +894,33 @@
     var scrAsk = function () { document.removeEventListener("pointerdown", scrAsk, true); if (!SCR) scrPrep(); };
     document.addEventListener("pointerdown", scrAsk, true);
   }
-  function openTW(tab) {
-    DTAB = tab || DTAB || "today";
-    if (TW && !TW.closed) { try { TW.focus(); if (TW.DESKAPP) TW.DESKAPP.show(DTAB); } catch (e) {} return; }
-    if (!SCR && "getScreenDetails" in window && screen.isExtended !== false && !openTW.once) { openTW.once = true; scrPrep().then(function () { openTW.once = false; openTW.go = true; openTW(tab); }); return; }
-    var w = Math.min(1280, screen.availWidth || 1280), h = Math.min(900, screen.availHeight || 900), pos = "";
+  // 선생님 모니터(바탕화면이 없는 쪽) 위치 계산: 서랍 · 도구함 창이 같이 쓴다
+  function winPlace() {
+    var w = Math.min(1280, screen.availWidth || 1280), h = Math.min(900, screen.availHeight || 900), pos = "", at = null;
     if (SCR && SCR.screens && SCR.screens.length > 1) {
       // 바탕화면이 떠 있는 모니터가 아닌 다른 모니터(선생님 모니터)를 고른다. 같은 좌표면 같은 모니터
       var cx = window.screenX + window.outerWidth / 2, cy = window.screenY + window.outerHeight / 2;
       var here = SCR.screens.filter(function (x) { return cx >= x.left && cx < x.left + x.width && cy >= x.top && cy < x.top + x.height; })[0] || SCR.currentScreen;
       var others = SCR.screens.filter(function (x) { return !here || x.left !== here.left || x.top !== here.top; });
       var P = others.filter(function (x) { return x.isPrimary; })[0] || others[0];
-      if (P) { w = Math.min(1280, P.availWidth - 40); h = Math.min(900, P.availHeight - 40); var L = Math.round(P.availLeft + (P.availWidth - w) / 2), T = Math.round(P.availTop + (P.availHeight - h) / 2); pos = ",left=" + L + ",top=" + T; openTW.at = [L, T, w, h]; }
+      if (P) { w = Math.min(1280, P.availWidth - 40); h = Math.min(900, P.availHeight - 40); var L = Math.round(P.availLeft + (P.availWidth - w) / 2), T = Math.round(P.availTop + (P.availHeight - h) / 2); pos = ",left=" + L + ",top=" + T; at = [L, T, w, h]; }
     }
+    return { w: w, h: h, pos: pos, at: at };
+  }
+  // 놀이 · 도구함도 선생님 모니터에 따로 뜨는 창으로 (아이들에게 보여 줄 땐 창을 칠판 쪽으로 끌기)
+  function openTB(id) {
+    if (TB && !TB.closed) { try { TB.focus(); if (id && TB.showTool) TB.showTool(id); } catch (e) {} return; }
+    if (!SCR && "getScreenDetails" in window && screen.isExtended !== false && !openTB.once) { openTB.once = true; scrPrep().then(function () { openTB.once = false; openTB(id); }); return; }
+    var pl = winPlace();
+    TB = window.open(location.pathname + "?tools=1" + (id ? "&tool=" + encodeURIComponent(id) : ""), "deskTools", "popup=yes,width=" + pl.w + ",height=" + pl.h + pl.pos);
+    if (TB && pl.pos && pl.at) { var at = pl.at; [300, 1200].forEach(function (ms) { setTimeout(function () { try { if (TB && !TB.closed && Math.abs(TB.screenX - at[0]) > 50) { TB.moveTo(at[0], at[1]); TB.resizeTo(at[2], at[3]); } } catch (e) {} }, ms); }); }
+    if (!TB) toast("새 창이 막혔어요. 이 사이트의 팝업을 '항상 허용'으로 바꿔 주세요");
+  }
+  function openTW(tab) {
+    DTAB = tab || DTAB || "today";
+    if (TW && !TW.closed) { try { TW.focus(); if (TW.DESKAPP) TW.DESKAPP.show(DTAB); } catch (e) {} return; }
+    if (!SCR && "getScreenDetails" in window && screen.isExtended !== false && !openTW.once) { openTW.once = true; scrPrep().then(function () { openTW.once = false; openTW.go = true; openTW(tab); }); return; }
+    var pl = winPlace(), w = pl.w, h = pl.h, pos = pl.pos; openTW.at = pl.at;
     // 진단: 왜 선생님 모니터로 못 옮기는지 화면에 잠깐 보여 준다
     (function () {
       var why = !("getScreenDetails" in window) ? "이 크롬은 창 관리 기능이 없어요 (크롬 업데이트 필요)" :
@@ -933,7 +947,7 @@
     closeDrawer = function () {};
     $("dClose").onclick = function () { window.close(); };
     $("dClose").title = "창 닫기";
-    teacherOff = function () { try { if (TOP && !TOP.closed) TOP.DESKAPP.teacherOff(); } catch (e) {} window.close(); };
+    if (!TOOLWIN) teacherOff = function () { try { if (TOP && !TOP.closed) TOP.DESKAPP.teacherOff(); } catch (e) {} window.close(); };
     poke = function () { clearTimeout(TIMEOUT); try { if (TOP && !TOP.closed) TOP.DESKAPP.poke(); } catch (e) {} };
     editOn = function () { try { TOP.DESKAPP.editOn(); toast("바탕화면 창에서 카드를 끌어 옮기고 [저장]을 눌러 주세요"); } catch (e) { toast("바탕화면 창이 닫혀 있어요"); } };
     document.addEventListener("keydown", function () { poke(); });
@@ -1438,6 +1452,7 @@
 
   function twinStart() {
     document.body.classList.add("twin");
+    if (TOOLWIN) { document.title = "놀이 · 도구함 · " + ((D && D.settings["학급 닉네임"]) || "우리반 바탕화면"); var tm = /[?&]tool=([^&]+)/.exec(location.search); openTools(tm ? decodeURIComponent(tm[1]) : ""); return; }
     document.title = "선생님 서랍 · " + ((D && D.settings["학급 닉네임"]) || "우리반 바탕화면");
     var m = /[?&]tab=([^&]+)/.exec(location.search), tab = m ? decodeURIComponent(m[1]) : "today";
     if (!TPW) { openModal("tlock"); setTimeout(function () { $("tpw").focus(); }, 60); return; }
@@ -1990,19 +2005,20 @@
   function stepper(id, val) { return '<span class="step"><button data-st="' + id + '" data-d="-1" aria-label="줄이기">−</button><b class="num">' + val + '</b><button data-st="' + id + '" data-d="1" aria-label="늘리기">+</button></span>'; }
   function needTeacher() { if (TPW) return false; toast("시트에 저장은 선생님 모드에서 할 수 있어요"); openModal("tlock"); setTimeout(function () { $("tpw").focus(); }, 60); return true; }
   function openTools(id) { if (!D) return; $("tbx").classList.add("on"); showTool(id || ""); }
-  function closeTools() { $("tbx").classList.remove("on"); TOOL = ""; cancelAnimationFrame(WH.raf); micStop(); }
+  function closeTools() { $("tbx").classList.remove("on"); TOOL = ""; cancelAnimationFrame(WH.raf); micStop(); if (TOOLWIN) window.close(); }
   function showTool(id) {
     if (id !== "voice") micStop();
     TOOL = id; $("tbBack").hidden = !id; $("tbTools").innerHTML = "";
     var t = TOOLS.filter(function (x) { return x[0] === id; })[0];
     $("tbTitle").textContent = t ? t[1] : "놀이 · 도구함";
+    if (TOOLWIN && (id === "timer" || id === "read" || id === "clock")) { try { TOP.showTool(id); TOP.focus(); } catch (e) {} TOOL = ""; showTool(""); return; }
     if (id === "timer") { closeTools(); $("tBig").click(); return; }
     if (id === "read") { closeTools(); $("readBtn").click(); return; }
     if (id === "clock") { closeTools(); openClock(); return; }
     if (!t) { $("tbb").innerHTML = '<div class="tiles">' + TOOLS.filter(function (x) { return !isOff(x[1]); }).map(function (x) { return '<button class="tile" style="--tc:' + x[3] + '" data-tool="' + x[0] + '"><span class="ti">' + ico(x[2]) + '</span><b class="jua">' + x[1] + "</b><small>" + x[4] + "</small></button>"; }).join("") + "</div>"; return; }
     ({ seat: seatTool, group: groupTool, ladder: ladderTool, wheel: wheelTool, pick: pickTool, order: orderTool, score: scoreTool, dice: diceTool, voice: voiceTool, qr: qrTool })[id]();
   }
-  $("toolBtn").onclick = function () { openTools(""); };
+  $("toolBtn").onclick = function () { if (TWIN) openTools(""); else openTB(""); };
   $("tbClose").onclick = closeTools;
   $("tbBack").onclick = function () { showTool(""); };
   addEventListener("keydown", function (e) { if (e.key === "Escape" && $("tbx").classList.contains("on")) closeTools(); });
