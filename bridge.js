@@ -47,7 +47,8 @@
     G.google = G.google || {};
     G.google.script = { run: runner(null, null) };
     G.DESK = { call: pcall, mode: function () { try { return O.DESK.mode(); } catch (e) { return ''; } },
-      sheetPane: function () { try { return O.DESK.sheetPane(); } catch (e) { return '<p class="muted">바탕화면 창이 닫혀 있어요.</p>'; } } };
+      sheetPane: function () { try { return O.DESK.sheetPane(); } catch (e) { return '<p class="muted">바탕화면 창이 닫혀 있어요.</p>'; } },
+      picUp: function (b) { return O.DESK.picUp(b); }, picUrl: function (id) { return O.DESK.picUrl(id); }, picDel: function (id) { return O.DESK.picDel(id); } };
     G.TEACHER_OPENER = O;
     if (!O) {
       var st = document.getElementById('deskStart');
@@ -386,10 +387,50 @@
     if (k === 'switch') { ls('desk-sheet', null); ls('classdesk-cache', null); location.href = BASE + '?choose=1'; }
     if (k === 'out') signOut();
   };
+  var PICS = {}, PICN = 0;
+  async function picDir() {
+    var k = 'desk-picdir-' + ((G.GS.info() || {}).id || ''), id = ls(k);
+    if (id) return id;
+    var name = '우리반 바탕화면 · 알림장 사진';
+    var j = await gapi(DRIVE + '?fields=files(id)&q=' + encodeURIComponent("name='" + name + "' and mimeType='application/vnd.google-apps.folder' and trashed=false"));
+    if (j.files && j.files[0]) id = j.files[0].id;
+    else {
+      var par = []; try { par = (await gapi(DRIVE + '/' + G.GS.info().id + '?fields=parents')).parents || []; } catch (e) {}
+      id = (await gapi(DRIVE, { method: 'POST', body: JSON.stringify({ name: name, mimeType: 'application/vnd.google-apps.folder', parents: par.slice(0, 1) }) })).id;
+    }
+    ls(k, id); return id;
+  }
+  async function picUp(blob) {
+    if (MODE !== 'google') { var d = 'demo' + (++PICN); PICS[d] = Promise.resolve(URL.createObjectURL(blob)); return d; }
+    var dir = await picDir(), b = 'deskpic' + Date.now();
+    var meta = { name: '알림장 ' + new Date().toISOString().slice(0, 19).replace('T', ' ') + '.jpg', parents: [dir] };
+    var body = new Blob(['--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(meta) + '\r\n--' + b + '\r\nContent-Type: ' + (blob.type || 'image/jpeg') + '\r\n\r\n', blob, '\r\n--' + b + '--']);
+    var j = await gapi('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', body: body, headers: { 'Content-Type': 'multipart/related; boundary=' + b } });
+    PICS[j.id] = Promise.resolve(URL.createObjectURL(blob));
+    return j.id;
+  }
+  function picUrl(id) {
+    if (!PICS[id]) {
+      PICS[id] = (async function () {
+        if (MODE !== 'google') throw new Error('사진을 찾지 못했어요');
+        var r = await backend.fetch(DRIVE + '/' + encodeURIComponent(id) + '?alt=media');
+        if (!r.ok) throw new Error('사진을 가져오지 못했어요 (' + r.status + ')');
+        return URL.createObjectURL(await r.blob());
+      })();
+      PICS[id].catch(function () { delete PICS[id]; });
+    }
+    return PICS[id];
+  }
+  function picDel(id) {
+    if (MODE !== 'google' || /^demo/.test(id)) return Promise.resolve();
+    return gapi(DRIVE + '/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify({ trashed: true }) }).catch(function () {});
+  }
   G.DESK = {
     call: call, sheetPane: sheetPane, mode: function () { return MODE; },
     // 앱판 주방(overrides.js)이 Drive API 를 부를 때 (공유 확인 · 시트 주인 메일)
     drive: function (path) { return gapi(DRIVE + path); },
+    // 알림장 사진: 이 앱이 만든 드라이브 폴더에 올리고, 볼 때는 로그인 열쇠로 받아 와서 보여 준다 (누구에게도 공유되지 않음)
+    picUp: picUp, picUrl: picUrl, picDel: picDel,
     // 시험용: 끝까지 보내기
     drain: function () { return inChain(sendNow); },
   };

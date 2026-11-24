@@ -17,7 +17,7 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="desk.css?v=my33">
+<link rel="stylesheet" href="desk.css?v=my34">
 <script src="https://accounts.google.com/gsi/client" async></script>
 <!--
   우리반 바탕화면 앱판 (kimman.kr/desk) — GAS판 v3.0 화면에 구글 시트 직접 연결을 더한 것 — 화면 · 만든 사람 김맨 (https://kimman.kr) · CC BY-SA 4.0 · 주문대
@@ -370,6 +370,28 @@
   .nt-list .mempty{list-style:none; margin-left:-1.5em; color:var(--sub); font-weight:600; font-size:14px}
   .ntbig{position:fixed; inset:0; z-index:86; display:none; background:#5b3a22; padding:clamp(10px,1.6vw,22px)}
   .ntbig.on{display:block}
+  .nt-pics{display:flex; gap:6px; margin-top:6px; min-height:0; flex:0 0 auto; height:clamp(44px,26cqh,110px)}
+  .nt-pics:empty{display:none}
+  .nt-pics img, .nt-pics span{height:100%; aspect-ratio:4/3; object-fit:cover; border-radius:8px; background:#eef2f6; box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  .nt-pics span{display:grid; place-items:center; aspect-ratio:1; font-weight:800; color:var(--sub); padding:0 8px}
+  .ntb-in.haspic{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,40%); grid-template-rows:auto 1fr auto; column-gap:clamp(20px,3vw,48px); width:min(1600px,94%)}
+  .ntb-in.haspic h2{grid-column:1/-1} .ntb-in.haspic .ntb-help{grid-column:1/-1}
+  .ntb-pics{display:flex; flex-direction:column; gap:18px; align-items:center; min-height:0; overflow:auto; padding:6px 4px 10px}
+  .ntb-pics:empty{display:none}
+  .ntb-pic{position:relative; background:#fbfaf4; padding:10px 10px 12px; border-radius:3px; box-shadow:0 8px 22px rgba(0,0,0,.35); transform:rotate(-1.2deg); cursor:zoom-in; max-width:100%}
+  .ntb-pic:nth-child(even){transform:rotate(1.3deg)}
+  .ntb-pic::before{content:""; position:absolute; top:-12px; left:50%; width:84px; height:24px; margin-left:-42px; background:rgba(255,236,160,.75); transform:rotate(-3deg); box-shadow:0 1px 2px rgba(0,0,0,.15)}
+  .ntb-pic img{display:block; max-width:100%; max-height:calc((100vh - 320px) / var(--npc,1)); min-height:80px; min-width:120px; object-fit:contain; background:#ddd}
+  .ntb-pic .x{position:absolute; top:-14px; right:-14px; width:40px; height:40px; border-radius:50%; border:0; background:#e5566a; color:#fff; font-size:22px; font-weight:800; cursor:pointer; display:none; box-shadow:0 2px 6px rgba(0,0,0,.3)}
+  .cb-board.editing .ntb-pic .x{display:block}
+  .ntpv{position:fixed; inset:0; z-index:95; display:none; place-items:center; background:rgba(10,12,10,.92); cursor:zoom-out}
+  .ntpv.on{display:grid} .ntpv img{max-width:96vw; max-height:94vh; object-fit:contain; border-radius:6px; box-shadow:0 10px 40px rgba(0,0,0,.5)}
+  .ntp-row{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:10px}
+  .ntp-row .ntp{position:relative; width:120px; height:90px; border-radius:10px; overflow:hidden; background:#eef2f6; box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  .ntp-row .ntp img{width:100%; height:100%; object-fit:cover; display:block}
+  .ntp-row .ntp button{position:absolute; top:4px; right:4px; width:26px; height:26px; border-radius:50%; border:0; background:rgba(0,0,0,.6); color:#fff; font-weight:800; cursor:pointer}
+  .ntp-add{width:120px; height:90px; border:2px dashed #b8c4d0; border-radius:10px; display:grid; place-items:center; color:var(--sub); font-weight:800; cursor:pointer; background:transparent; font-size:14px; text-align:center}
+  .ntp-add:hover{border-color:var(--main); color:var(--main)}
   /* 칠판: 나무틀 + 초록 칠판 + 분필 가루 */
   .cb-board{--nts:1; --ntf:'Gaegu'; position:relative; height:100%; border-radius:6px; overflow:hidden; display:flex; flex-direction:column;
     background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)'/%3E%3C/svg%3E"), radial-gradient(ellipse at 30% 20%, #3c7356 0%, #2f6148 45%, #264f3b 100%);
@@ -1010,7 +1032,7 @@ if (/[?&]tools\b/.test(location.search)) document.documentElement.classList.add(
 
   <section class="card c-notice" data-id="notice" id="noticeCard" role="button" tabindex="0" aria-label="알림장 크게 보기" title="눌러서 크게 보기">
     <header class="ch"><span class="ic" data-i="note"></span><h2>알림장</h2><span class="r"><span class="badge" id="noticeDay"></span></span></header>
-    <ol class="nt-list" id="noticeList"></ol><div class="tools"></div></section>
+    <ol class="nt-list" id="noticeList"></ol><div class="nt-pics" id="noticePics"></div><div class="tools"></div></section>
 
   <section class="card c-memo" data-id="memo" id="memoCard">
     <header class="ch"><span class="ic" data-i="chat"></span><h2>선생님께 남겨요</h2><span class="r"><span class="badge" id="memoNew" hidden></span></span></header>
@@ -1089,8 +1111,8 @@ if (/[?&]tools\b/.test(location.search)) document.documentElement.classList.add(
   <div class="cb-board" id="cbBoard">
     <div class="ntb-bar"><span class="ntb-state" id="ntbState"></span>
       <button class="cbb" id="ntSmaller" title="글씨 작게">가−</button><button class="cbb" id="ntBigger" title="글씨 크게">가+</button><span style="position:relative"><button class="cbb" id="ntFont" title="글씨체 고르기">글씨체 ▾</button><div class="nt-fonts" id="ntFonts"></div></span>
-      <button class="cbb main" id="ntEdit">✏️ 쓰기</button><button class="cbb main" id="ntDone" hidden>다 썼어요</button><button class="cbb" id="ntClose">닫기</button></div>
-    <div class="ntb-in"><h2 id="ntbTitle">알림장</h2><ol id="ntbList" spellcheck="false"></ol><p class="ntb-help" id="ntbHelp" hidden>Enter를 누르면 다음 번호 · 글자를 고른 뒤 아래 분필을 누르면 꾸며져요 · 저절로 저장돼요</p></div>
+      <button class="cbb" id="ntPic" title="사진 붙이기 (복사한 사진은 Ctrl+V로도 붙어요)">📷 사진</button><input type="file" id="ntPicIn" accept="image/*" multiple hidden><button class="cbb main" id="ntEdit">✏️ 쓰기</button><button class="cbb main" id="ntDone" hidden>다 썼어요</button><button class="cbb" id="ntClose">닫기</button></div>
+    <div class="ntb-in"><h2 id="ntbTitle">알림장</h2><ol id="ntbList" spellcheck="false"></ol><div class="ntb-pics" id="ntbPics"></div><p class="ntb-help" id="ntbHelp" hidden>Enter를 누르면 다음 번호 · 글자를 고른 뒤 아래 분필을 누르면 꾸며져요 · 복사한 사진은 Ctrl+V로 붙어요 · 저절로 저장돼요</p></div>
     <div class="cb-tray" id="cbTray">
       <button class="chalk" data-nk="w" title="흰 분필 (색 빼기)"><i style="--c:#f4f1e6"></i><span>흰색</span></button>
       <button class="chalk" data-nk="y" title="노랑 분필"><i style="--c:#ffe27a"></i><span>노랑</span></button>
@@ -1105,6 +1127,7 @@ if (/[?&]tools\b/.test(location.search)) document.documentElement.classList.add(
 <div class="big" id="bigClock" role="dialog" aria-label="큰 시계"><button class="btn ghost bx" id="bcClose">닫기</button>
   <div class="bclock"><svg viewBox="0 0 200 200" id="analogB" aria-hidden="true"></svg>
     <div class="bcd"><span class="ap" id="bAp"></span><div class="bct jua num"><span id="bH">--</span><span class="colon">:</span><span id="bM">--</span></div><div class="bcdate" id="bDate"></div><div class="bcnow" id="bNow" hidden><i></i><span></span></div></div></div></div>
+<div class="ntpv" id="ntPicView" role="dialog" aria-label="사진 크게 보기"><img alt="알림장 사진"></div>
 <div class="qrbig" id="qrBig" role="dialog" aria-label="QR 크게 보기"><button class="btn ghost" id="qrClose">닫기</button><div class="qrb-box" id="qrBigBox"></div></div>
 <div class="big" id="bigTimer"><div class="bx bxs"><button class="btn ghost" id="bigAuto">쉬는 시간 자동 켜짐</button><button class="btn ghost" id="bigSize">중간 크기로</button><button class="btn ghost" id="bigClose">닫기</button></div><div class="bt-in"><div class="bt jua num" id="bigT">05:00</div><div class="bbar"><i id="bigBar"></i></div><div class="bs" id="bigS"></div>
   <div class="bctl"><button class="chip" data-pre="60">1분</button><button class="chip" data-pre="180">3분</button><button class="chip" data-pre="300">5분</button><button class="chip" data-pre="600">10분</button><button class="chip" data-pre="900">15분</button></div>
@@ -1129,11 +1152,11 @@ if (/[?&]tools\b/.test(location.search)) document.documentElement.classList.add(
 
 <div class="desk-start" id="deskStart" role="dialog" aria-modal="true" aria-label="우리반 바탕화면 시작" hidden></div>
 <div class="desk-link" id="deskLink" role="status" aria-live="polite" hidden></div>
-<script src="config.js?v=my33"></script>
-<script src="gs.js?v=my33"></script>
-<script src="core.js?v=my33"></script>
-<script src="bridge.js?v=my33"></script>
+<script src="config.js?v=my34"></script>
+<script src="gs.js?v=my34"></script>
+<script src="core.js?v=my34"></script>
+<script src="bridge.js?v=my34"></script>
 <script src="qrcode.js?v=1"></script>
-<script src="app.js?v=my33"></script>
+<script src="app.js?v=my34"></script>
 </body>
 </html>

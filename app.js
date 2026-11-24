@@ -1086,15 +1086,94 @@
     if (!$("noticeList")) return;
     var n = D.notice, li = n ? ntLines(n.text) : [];
     $("noticeDay").textContent = mdText(D.today).replace(/^\d+월 /, "");
-    $("noticeList").innerHTML = li.length ? li.map(function (x) { return "<li>" + ntFmt(x) + "</li>"; }).join("") : '<li class="mempty">오늘 알림장이 아직 없어요</li>';
+    var pc = n && n.pics || [];
+    $("noticeList").innerHTML = li.length ? li.map(function (x) { return "<li>" + ntFmt(x) + "</li>"; }).join("") : pc.length ? "" : '<li class="mempty">오늘 알림장이 아직 없어요</li>';
+    $("noticePics").innerHTML = pc.slice(0, 3).map(function (id) { return '<img data-pic="' + esc(id) + '" alt="">'; }).join("") + (pc.length > 3 ? "<span>+" + (pc.length - 3) + "</span>" : "");
+    ntPicFill($("noticePics"));
     if ($("noticeBig").classList.contains("on")) noticeBigDraw();
   }
   function noticeBigDraw() {
     if (NTE.on) return;
     var li = D.notice ? ntLines(D.notice.text) : [];
     $("ntbTitle").textContent = mdText(D.today) + " 알림장";
-    $("ntbList").innerHTML = li.length ? li.map(function (x) { return "<li>" + ntFmt(x) + "</li>"; }).join("") : '<li style="list-style:none">오늘 알림장이 아직 없어요</li>';
+    $("ntbList").innerHTML = li.length ? li.map(function (x) { return "<li>" + ntFmt(x) + "</li>"; }).join("") : (D.notice && D.notice.pics && D.notice.pics.length) ? "" : '<li style="list-style:none">오늘 알림장이 아직 없어요</li>';
+    ntbPicsDraw();
   }
+  // ── 알림장 사진 (선생님 구글 드라이브의 '알림장 사진' 폴더에만. 공유되지 않음) ──
+  function ntPicFill(root) {
+    root.querySelectorAll("img[data-pic]").forEach(function (im) {
+      if (im.dataset.ok) return; im.dataset.ok = 1;
+      try { DESK.picUrl(im.dataset.pic).then(function (u) { im.src = u; }, function () { im.alt = "사진을 못 가져왔어요"; }); } catch (e) {}
+    });
+  }
+  function ntbPicsDraw() {
+    var pc = (D && D.notice && D.notice.pics) || [];
+    $("ntbPics").innerHTML = pc.map(function (id) { return '<div class="ntb-pic"><img data-pic="' + esc(id) + '" alt="알림장 사진"><button class="x" data-ntpx="' + esc(id) + '" title="이 사진 빼기">×</button></div>'; }).join("");
+    $("ntbPics").style.setProperty("--npc", Math.min(pc.length, 3) || 1);
+    document.querySelector(".ntb-in").classList.toggle("haspic", pc.length > 0);
+    ntPicFill($("ntbPics"));
+  }
+  function ntPicsOf(d) { if (D && d === D.today) return (D.notice && D.notice.pics || []).slice(); var x = ntFind(d); return x && x.pics ? x.pics.slice() : []; }
+  // 사진을 줄여서 (긴 쪽 1600px, JPG) 올린다
+  function ntShrink(file) {
+    return new Promise(function (ok, no) {
+      var u = URL.createObjectURL(file), im = new Image();
+      im.onload = function () {
+        var k = Math.min(1, 1600 / Math.max(im.naturalWidth, im.naturalHeight)), c = document.createElement("canvas");
+        c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k);
+        var g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
+        c.toBlob(function (b) { b ? ok(b) : no(new Error("사진을 줄이지 못했어요")); }, "image/jpeg", 0.85);
+      };
+      im.onerror = function () { URL.revokeObjectURL(u); no(new Error("사진 파일을 열지 못했어요")); };
+      im.src = u;
+    });
+  }
+  function ntPicsSave(d, ids, msg) {
+    var m = d.slice(0, 7);
+    write("noticePics", [TPW, d, ids], { msg: msg,
+      mut: function (dd) {
+        var l = NT.months[m], x = l && l.filter(function (y) { return y.d === d; })[0];
+        if (l) { if (x) x.pics = ids.slice(); else if (ids.length) { l.push({ d: d, text: "", pics: ids.slice(), at: nowStamp() }); l.sort(function (a, b) { return a.d < b.d ? 1 : -1; }); } NT.months[m] = l.filter(function (y) { return y.text || (y.pics && y.pics.length); }); }
+        if (d === dd.today) { var t = dd.notice ? dd.notice.text : ""; dd.notice = t || ids.length ? { d: d, text: t, pics: ids.slice() } : null; }
+      },
+      after: function () { ntPicsSync(); } });
+  }
+  function ntPicsSync() {
+    try { if (TW && !TW.closed && TW.NT) { TW.NT.months = {}; if (TW.DTAB === "notice") TW.drawDrawer(); } } catch (x) {}
+    try { if (TOP && !TOP.closed && TOP.DESKAPP) TOP.DESKAPP.refresh(); } catch (x) {}
+  }
+  var NTUP = 0;
+  async function ntPicAdd(d, files) {
+    files = [].filter.call(files || [], function (f) { return /^image\//.test(f.type); });
+    if (!files.length) return;
+    if (!TPW) { toast("선생님 모드에서 사진을 붙일 수 있어요"); return; }
+    var ids = ntPicsOf(d);
+    if (ids.length + files.length > 12) { toast("사진은 하루에 12장까지 붙일 수 있어요"); files = files.slice(0, Math.max(0, 12 - ids.length)); if (!files.length) return; }
+    NTUP++; toast("사진 올리는 중… (" + files.length + "장)");
+    try {
+      for (var i = 0; i < files.length; i++) ids.push(await DESK.picUp(await ntShrink(files[i])));
+      ntPicsSave(d, ntPicsOf(d).concat(ids.slice(ntPicsOf(d).length)), "사진 " + files.length + "장을 붙였어요");
+    } catch (e) { fail(e); }
+    NTUP--;
+    if (DTAB === "notice") drawDrawer();
+  }
+  function ntPicDel(d, id) {
+    var ids = ntPicsOf(d).filter(function (x) { return x !== id; });
+    ntPicsSave(d, ids, "사진을 뺐어요");
+    try { DESK.picDel(id); } catch (e) {}
+    if (DTAB === "notice") drawDrawer();
+  }
+  $("ntPic").onclick = function () {
+    if (!TPW) { TGO = "notice"; $("tlock").classList.add("over-lock"); openModal("tlock"); setTimeout(function () { $("tpw").focus(); }, 60); return; }
+    $("ntPicIn").click();
+  };
+  $("ntPicIn").addEventListener("change", function () { var f = this.files; ntPicAdd(D.today, f).then(ntbPicsDraw); this.value = ""; });
+  $("ntbPics").addEventListener("click", function (e) {
+    var x = e.target.closest("[data-ntpx]"); if (x) { e.stopPropagation(); ntPicDel(D.today, x.dataset.ntpx); ntbPicsDraw(); return; }
+    var im = e.target.closest("img[data-pic]"); if (im && im.src) { var v = $("ntPicView"); v.querySelector("img").src = im.src; v.classList.add("on"); }
+  });
+  $("ntPicView").addEventListener("click", function () { this.classList.remove("on"); });
+  addEventListener("keydown", function (e) { if (e.key === "Escape") $("ntPicView").classList.remove("on"); }, true);
   $("noticeCard").addEventListener("click", function (e) { if (EDIT || e.target.closest(".tools") || !D) return; ntFontsLoad(); noticeBigDraw(); $("noticeBig").classList.add("on"); });
   $("noticeCard").addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && !EDIT) { e.preventDefault(); $("noticeCard").click(); } });
   // 칠판 크게 보기에서 바로 쓰기 (선생님 모드에서만). 쓰는 대로 칠판에 보이고, 손을 멈추면 저절로 저장
@@ -1228,11 +1307,14 @@
     NTE.last = text; var d = D.today;
     $("ntbState").textContent = "저장 중…";
     write("noticeSave", [TPW, d, text], {
-      mut: function (dd) { dd.notice = text ? { d: d, text: text } : null; if (typeof NT !== "undefined" && NT.months) delete NT.months[d.slice(0, 7)]; },
+      mut: function (dd) { var pc = dd.notice && dd.notice.pics || []; dd.notice = text || pc.length ? { d: d, text: text, pics: pc } : null; if (typeof NT !== "undefined" && NT.months) delete NT.months[d.slice(0, 7)]; },
       after: function () { $("ntbState").textContent = "저장됨 " + hm(new Date()); try { if (TW && !TW.closed && TW.NT) { TW.NT.months = {}; if (TW.DTAB === "notice") TW.drawDrawer(); } } catch (x) {} } });
   }
   $("ntbList").addEventListener("input", function () { if (!NTE.on) return; poke(); $("ntbState").textContent = "쓰는 중…"; clearTimeout(NTE.t); NTE.t = setTimeout(ntAutoSave, 1800); });
-  $("ntbList").addEventListener("paste", function (e) { if (!NTE.on) return; e.preventDefault(); var t = (e.clipboardData || window.clipboardData).getData("text/plain"); document.execCommand("insertText", false, t); });
+  $("ntbList").addEventListener("paste", function (e) { if (!NTE.on) return; e.preventDefault();
+    var fs = [].map.call((e.clipboardData && e.clipboardData.items) || [], function (it) { return it.kind === "file" ? it.getAsFile() : null; }).filter(Boolean);
+    if (fs.length) { ntPicAdd(D.today, fs).then(ntbPicsDraw); return; }
+    var t = (e.clipboardData || window.clipboardData).getData("text/plain"); document.execCommand("insertText", false, t); });
   $("ntbList").addEventListener("keydown", function (e) { if (NTE.on && !$("ntbList").querySelector("li")) { $("ntbList").innerHTML = "<li><br></li>"; } });
   $("ntEdit").onclick = ntEditOn;
   $("ntDone").onclick = function () { ntEditOff(); toast("알림장을 저장했어요"); };
@@ -1259,19 +1341,29 @@
       '<input class="field" type="date" id="ntDate" value="' + NT.d + '"></div>' +
       '<textarea class="field" id="ntText" maxlength="1500" placeholder="한 줄에 하나씩 적어요. 번호는 저절로 붙어요. ([[y:글자]]처럼 보이는 건 칠판에서 넣은 꾸밈이에요)\n예)\n수학 익힘책 54~55쪽\n내일 체육복 입고 오기\n가정통신문(현장체험학습) 회신">' + esc(val) + "</textarea>" +
       '<div class="frow" style="margin-top:8px"><button class="btn" id="ntSave">저장</button>' + (dr != null ? '<button class="btn ghost" id="ntUndo">고친 것 버리기</button>' : "") +
-      (NT.d === D.today ? '<button class="btn ghost" id="ntBig">칠판에 크게 띄우기</button>' : "") + (cur ? '<button class="btn ghost" id="ntDel" style="margin-left:auto">이 날 알림장 지우기</button>' : "") + "</div></div>";
+      (NT.d === D.today ? '<button class="btn ghost" id="ntBig">칠판에 크게 띄우기</button>' : "") + (cur && cur.text ? '<button class="btn ghost" id="ntDel" style="margin-left:auto">이 날 글 지우기</button>' : "") + "</div>" +
+      '<div class="ntp-row">' + ntPicsOf(NT.d).map(function (id) { return '<div class="ntp"><img data-pic="' + esc(id) + '" alt=""><button data-ntpdel="' + esc(id) + '" title="이 사진 빼기">×</button></div>'; }).join("") +
+      '<label class="ntp-add">' + (NTUP ? "올리는 중…" : "📷 사진 붙이기") + '<input type="file" id="ntPicIn2" accept="image/*" multiple hidden></label>' +
+      '<span class="muted" style="font-size:12px">' + (NT.d === D.today ? "붙인 사진은 칠판 알림장 옆에 크게 보여요 · " : "") + "선생님 구글 드라이브에만 저장돼요</span></div></div>";
     var list = NT.months[m];
     h += '<div class="dsec"><h4>' + ico("cal") + Number(m.slice(5)) + "월 알림장" + '<span class="lp-nav"><button class="btn ghost sm" data-ntm="-1">◀ 지난달</button><button class="btn ghost sm" data-ntm="1">다음 달 ▶</button></span></h4>' +
       (list.length ? '<div class="nt-old">' + list.map(function (x) {
-        return '<button data-ntd="' + x.d + '"' + (x.d === NT.d ? ' class="sel"' : "") + "><b>" + esc(mdText(x.d).replace(/^\d+월 /, "")) + "</b><span>" + ntLines(x.text).map(function (l, i) { return (i + 1) + ". " + ntFmt(l); }).join("<br>") + "</span></button>";
+        return '<button data-ntd="' + x.d + '"' + (x.d === NT.d ? ' class="sel"' : "") + "><b>" + esc(mdText(x.d).replace(/^\d+월 /, "")) + "</b><span>" + ntLines(x.text).map(function (l, i) { return (i + 1) + ". " + ntFmt(l); }).join("<br>") + (x.pics && x.pics.length ? (x.text ? "<br>" : "") + "📷 사진 " + x.pics.length + "장" : "") + "</span></button>";
       }).join("") + "</div>" : '<p class="muted">이 달에 적은 알림장이 없어요</p>') + "</div>";
     return h;
   }
   $("dbody").addEventListener("input", function (e) { if (e.target.id === "ntText") NT.drafts[NT.d] = e.target.value; });
+  $("dbody").addEventListener("change", function (e) { if (e.target.id === "ntPicIn2") { var f = e.target.files, d = NT.d; ntPicAdd(d, f); return; } });
+  $("dbody").addEventListener("paste", function (e) {
+    if (DTAB !== "notice") return;
+    var fs = [].map.call((e.clipboardData && e.clipboardData.items) || [], function (it) { return it.kind === "file" ? it.getAsFile() : null; }).filter(Boolean);
+    if (fs.length) { e.preventDefault(); ntPicAdd(NT.d, fs); }
+  });
   $("dbody").addEventListener("change", function (e) { if (e.target.id === "ntDate" && /^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) { NT.d = e.target.value; drawDrawer(); } });
   $("dbody").addEventListener("click", function (e) {
     var t = e.target.closest("button"); if (!t || DTAB !== "notice") return;
     if (t.dataset.ntd) { NT.d = t.dataset.ntd; drawDrawer(); return; }
+    if (t.dataset.ntpdel) { ntPicDel(NT.d, t.dataset.ntpdel); return; }
     if (t.dataset.ntm) { var a = new Date(NT.d.slice(0, 7) + "-15T12:00:00"); a.setMonth(a.getMonth() + Number(t.dataset.ntm)); NT.d = a.getFullYear() + "-" + pad(a.getMonth() + 1) + "-01"; drawDrawer(); return; }
     if (t.id === "ntUndo") { delete NT.drafts[NT.d]; drawDrawer(); return; }
     if (t.id === "ntBig") { try { if (TOP && !TOP.closed) { TOP.ntFontsLoad(); TOP.noticeBigDraw(); TOP.$("noticeBig").classList.add("on"); toast("칠판에 알림장을 크게 띄웠어요"); return; } } catch (x) {} noticeBigDraw(); $("noticeBig").classList.add("on"); return; }
@@ -1281,8 +1373,8 @@
       if (t.id === "ntSave" && !text && !ntFind(d)) { toast("알림장 내용을 먼저 적어 주세요"); $("ntText").focus(); return; }
       write("noticeSave", [TPW, d, text], { busy: text ? "알림장 저장 중" : "알림장 지우는 중", msg: text ? mdText(d) + " 알림장을 저장했어요" + (d === D.today ? " · 칠판에 보여요" : "") : "알림장을 지웠어요",
         mut: function (dd) {
-          var l = (NT.months[m] || []).filter(function (x) { return x.d !== d; }); if (text) l.push({ d: d, text: text, at: nowStamp() }); l.sort(function (a, b) { return a.d < b.d ? 1 : -1; }); NT.months[m] = l;
-          if (d === dd.today) dd.notice = text ? { d: d, text: text } : null; delete NT.drafts[d];
+          var pc = ntPicsOf(d), l = (NT.months[m] || []).filter(function (x) { return x.d !== d; }); if (text || pc.length) l.push({ d: d, text: text, pics: pc, at: nowStamp() }); l.sort(function (a, b) { return a.d < b.d ? 1 : -1; }); NT.months[m] = l;
+          if (d === dd.today) dd.notice = text || pc.length ? { d: d, text: text, pics: pc } : null; delete NT.drafts[d];
         } });
       drawDrawer(); return;
     }
@@ -1479,6 +1571,7 @@
     else if (DTAB === "notice") h = noticePane();
     else if (DTAB === "thermo") h = thermoPane();
     $("dbody").innerHTML = h;
+    if (DTAB === "notice") ntPicFill($("dbody"));
     if (DTAB === "tt") ttBind();
     if (DTAB === "month") monthBind();
     if (DTAB === "safe") safeBind();

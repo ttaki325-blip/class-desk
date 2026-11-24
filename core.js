@@ -41,7 +41,7 @@ const TABS = {
   '기록':      ['시각', '날짜', '종류', '번호', '이름', '내용'],
   '감정':      ['시각', '날짜', '번호', '이름', '신호등', '기분', '한마디'],
   '온도계':    ['시각', '날짜', '변화', '이유', '누적'],
-  '알림장':    ['날짜', '내용', '고친 시각'],
+  '알림장':    ['날짜', '내용', '고친 시각', '사진'],
   '수업계획':   ['날짜', '교시', '과목', '단원 · 차시', '학습 목표', '수업 계획', '활동 계획', '준비물', '메모', '고친 시각'],
 };
 // 출석부처럼 학생 × 날짜로 그려지는 체크표 (앱이 기록을 보고 저절로 다시 그린다)
@@ -67,12 +67,12 @@ const WIDTHS = {
   '기초시간표': [70, 120, 90, 90, 90, 90, 90], '시간표변경': [110, 80, 80, 80, 80, 80, 80, 80], '일정': [110, 220, 80],
   '명언': [460, 140], '할일': [60, 110, 320, 70], '기록': [140, 110, 80, 60, 90, 220], '온도계': [140, 110, 60, 200, 60],
   '쪽지': [60, 140, 110, 360], '감정': [140, 110, 60, 90, 70, 90, 260],
-  '선생님노트': [140, 110, 60, 90, 80, 420], '알림장': [110, 520, 140], '수업계획': [110, 50, 70, 160, 220, 360, 360, 160, 200, 140], '모둠': [90, 60, 100, 110], '출결': [110, 60, 90, 70, 80, 60, 260, 140],
+  '선생님노트': [140, 110, 60, 90, 80, 420], '알림장': [110, 520, 140, 200], '수업계획': [110, 50, 70, 160, 220, 360, 360, 160, 200, 140], '모둠': [90, 60, 100, 110], '출결': [110, 60, 90, 70, 80, 60, 260, 140],
   '학생별': [60, 90, 70, 80, 80, 70, 80, 100, 90, 90], '날짜별': [110, 80, 100, 100, 80, 60, 60, 60, 90],
 };
 const ALIGN = {   // 칸마다 정렬 (polish_)
   '설정': 'lll', '학생': 'cclccc', '계정': 'cc', '기초시간표': 'ccccccc', '시간표변경': 'cccccccc', '일정': 'clc', '명언': 'll',
-  '할일': 'cclc', '쪽지': 'cccl', '선생님노트': 'cccccl', '수업계획': 'ccclllllll', '알림장': 'clc', '모둠': 'cccc', '출결': 'cccccclc',
+  '할일': 'cclc', '쪽지': 'cccl', '선생님노트': 'cccccl', '수업계획': 'ccclllllll', '알림장': 'clcl', '모둠': 'cccc', '출결': 'cccccclc',
   '학생별': 'clcccccccc', '날짜별': 'ccccccccc', '기록': 'cccccl', '감정': 'ccccccl', '온도계': 'ccclc',
 };
 const SETTABLE = ['학급 닉네임', '학생 수', '이름 보이기', '지금 활동', '타이머 소리', '온도계 목표', '칭찬 이유', '점심 타이머', '요일별 시각', '온도계 보상', '온도계 수업방해 없는 날', '온도계 하루 정산 시각', '온도계 1인1역 기준', '온도계 1인1역 온도', '독서 · 명상 시간', '과목',
@@ -1781,13 +1781,14 @@ function noticeSheet_() {
   return sh;
 }
 function noticeRows_() { if (!sheet_('알림장')) return []; return rows_('알림장'); }
-function noticeOf_(ymd) { const r = noticeRows_().filter(function (x) { return x['날짜'] === ymd && x['내용']; })[0]; return r ? { d: r['날짜'], text: r['내용'] } : null; }
+function ntPics_(r) { return String(r['사진'] || '').split(',').map(function (x) { return x.trim(); }).filter(String); }
+function noticeOf_(ymd) { const r = noticeRows_().filter(function (x) { return x['날짜'] === ymd && (x['내용'] || x['사진']); })[0]; return r ? { d: r['날짜'], text: r['내용'] || '', pics: ntPics_(r) } : null; }
 // 한 달 치 (yyyy-MM) — 서랍에서 지난 알림장 보기
 function noticeList(code, pw, month) {
   guard_(code); tpw_(pw);
   month = /^\d{4}-\d{2}$/.test(String(month)) ? String(month) : today_().slice(0, 7);
-  const list = noticeRows_().filter(function (r) { return String(r['날짜']).slice(0, 7) === month && r['내용']; })
-    .map(function (r) { return { d: r['날짜'], text: r['내용'], at: r['고친 시각'] || '' }; });
+  const list = noticeRows_().filter(function (r) { return String(r['날짜']).slice(0, 7) === month && (r['내용'] || r['사진']); })
+    .map(function (r) { return { d: r['날짜'], text: r['내용'] || '', pics: ntPics_(r), at: r['고친 시각'] || '' }; });
   list.sort(function (a, b) { return a.d < b.d ? 1 : -1; });
   return { month: month, list: list };
 }
@@ -1798,10 +1799,27 @@ function noticeSave(code, pw, ymd, text) {
   text = String(text || '').replace(/\r/g, '').split('\n').map(function (x) { return x.trim(); }).filter(String).join('\n').slice(0, 1500);
   return locked_(function () {
     const sh = noticeSheet_(), hit = rows_('알림장').filter(function (r) { return r['날짜'] === ymd; })[0];
-    if (!text) { if (hit) sh.deleteRow(hit._row); return { ok: true, del: true }; }
+    if (!text && !(hit && hit['사진'])) { if (hit) sh.deleteRow(hit._row); return { ok: true, del: true }; }
     const row = [ymd, text, now_()];
     if (hit) sh.getRange(hit._row, 1, 1, 3).setValues([row]); else sh.appendRow(row);
     return { ok: true, at: row[2] };
+  });
+}
+
+// 사진 (구글 드라이브 파일 id 들, 쉼표로). 사진도 글도 없으면 그날 줄을 지운다
+function noticePics(code, pw, ymd, ids) {
+  guard_(code); tpw_(pw);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) throw new Error('날짜를 골라 주세요.');
+  ids = (ids || []).map(function (x) { return String(x).replace(/[^\w.-]/g, ''); }).filter(String).slice(0, 12);
+  return locked_(function () {
+    const sh = noticeSheet_();
+    if (String(sh.getRange(1, 4).getValue()) !== '사진') sh.getRange(1, 4).setValue('사진');
+    const hit = rows_('알림장').filter(function (r) { return r['날짜'] === ymd; })[0];
+    if (!ids.length && !(hit && hit['내용'])) { if (hit) sh.deleteRow(hit._row); return { ok: true }; }
+    const at = now_();
+    if (hit) { sh.getRange(hit._row, 3, 1, 2).setValues([[at, ids.join(',')]]); }
+    else sh.appendRow([ymd, '', at, ids.join(',')]);
+    return { ok: true, at: at };
   });
 }
 
@@ -1993,5 +2011,5 @@ async function searchSchool(code, pw, name, office) {
   return parseSchools_(await (await fetch(schoolUrl_(name, office))).json());
 }
 
-return { morningReport: morningReport, thermoAuto: thermoAuto, nameMark: nameMark, nameReset: nameReset, nameUndo: nameUndo, nameAutoReset: nameAutoReset, nameList: nameList, nameDel: nameDel, thermoRulesSave: thermoRulesSave, noticeList: noticeList, noticeSave: noticeSave, lessonWeek: lessonWeek, lessonFind: lessonFind, lessonSave: lessonSave, lessonDel: lessonDel, addDays_: addDays_, addEvent: addEvent, addMemo: addMemo, addMissing_: addMissing_, addNote: addNote, addTodo: addTodo, applySettings: applySettings, attendGet: attendGet, attendSave: attendSave, attendSheet_: attendSheet_, changePw: changePw, charts_: charts_, checkNo_: checkNo_, checkTeacher: checkTeacher, clearRecords: clearRecords, colA1_: colA1_, decorate_: decorate_, delMemo: delMemo, delTodo: delTodo, dish_: dish_, doGet: doGet, drawChecks_: drawChecks_, dv_: dv_, feel: feel, findRow_: findRow_, geocode_: geocode_, getAccount: getAccount, getAll: getAll, getMeal: getMeal, getWeather: getWeather, guard2_: guard2_, guard_: guard_, head_: head_, list_: list_, locked_: locked_, mailPw: mailPw, mainColor_: mainColor_, maskMail_: maskMail_, mealSchool_: mealSchool_, mealUrl_: mealUrl_, migrate_: migrate_, mmdd_: mmdd_, mondayOf_: mondayOf_, monthData: monthData, monthDays_: monthDays_, monthReport: monthReport, monthView_: monthView_, nextNo_: nextNo_, now_: now_, onEdit: onEdit, onOpen: onOpen, orderTabs_: orderTabs_, parseMeals_: parseMeals_, parseSchools_: parseSchools_, polish_: polish_, present: present, pwMailHtml_: pwMailHtml_, pwMailText_: pwMailText_, readmeAgain: readmeAgain, readmeOld_: readmeOld_, readme_: readme_, refreshAll: refreshAll, removeSamples: removeSamples, removeSamples_: removeSamples_, resetAll: resetAll, restyle: restyle, rows_: rows_, safe_: safe_, same_: same_, samples_: samples_, saveGroups: saveGroups, saveLayout: saveLayout, saveLocation: saveLocation, saveSchool: saveSchool, saveSeats: saveSeats, saveSetting: saveSetting, saveTimetable: saveTimetable, schoolUrl_: schoolUrl_, searchSchool: searchSchool, seedDemo_: seedDemo_, sendFeedback: sendFeedback, services_: services_, setSetting_: setSetting_, settings_: settings_, setup: setup, setup_: setup_, shareInfo: shareInfo, sheetTool: sheetTool, sheet_: sheet_, showUrls: showUrls, sortEvents: sortEvents, sortNotes: sortNotes, sortRange_: sortRange_, sortStudents: sortStudents, studentCount_: studentCount_, studentMap_: studentMap_, styleTab_: styleTab_, sync: sync, syncNotes_: syncNotes_, syncTabs_: syncTabs_, tail_: tail_, tally_: tally_, tap: tap, teacher: teacher, text_: text_, thermo: thermo, thermoReset: thermoReset, tidyTable_: tidyTable_, timetable_: timetable_, tint_: tint_, today_: today_, toggleRaw: toggleRaw, toggleTodo: toggleTodo, tpw_: tpw_, undoPresent: undoPresent, updateSummary: updateSummary, weekday_: weekday_, writeTable_: writeTable_ };
+return { morningReport: morningReport, thermoAuto: thermoAuto, nameMark: nameMark, nameReset: nameReset, nameUndo: nameUndo, nameAutoReset: nameAutoReset, nameList: nameList, nameDel: nameDel, thermoRulesSave: thermoRulesSave, noticeList: noticeList, noticeSave: noticeSave, noticePics: noticePics, lessonWeek: lessonWeek, lessonFind: lessonFind, lessonSave: lessonSave, lessonDel: lessonDel, addDays_: addDays_, addEvent: addEvent, addMemo: addMemo, addMissing_: addMissing_, addNote: addNote, addTodo: addTodo, applySettings: applySettings, attendGet: attendGet, attendSave: attendSave, attendSheet_: attendSheet_, changePw: changePw, charts_: charts_, checkNo_: checkNo_, checkTeacher: checkTeacher, clearRecords: clearRecords, colA1_: colA1_, decorate_: decorate_, delMemo: delMemo, delTodo: delTodo, dish_: dish_, doGet: doGet, drawChecks_: drawChecks_, dv_: dv_, feel: feel, findRow_: findRow_, geocode_: geocode_, getAccount: getAccount, getAll: getAll, getMeal: getMeal, getWeather: getWeather, guard2_: guard2_, guard_: guard_, head_: head_, list_: list_, locked_: locked_, mailPw: mailPw, mainColor_: mainColor_, maskMail_: maskMail_, mealSchool_: mealSchool_, mealUrl_: mealUrl_, migrate_: migrate_, mmdd_: mmdd_, mondayOf_: mondayOf_, monthData: monthData, monthDays_: monthDays_, monthReport: monthReport, monthView_: monthView_, nextNo_: nextNo_, now_: now_, onEdit: onEdit, onOpen: onOpen, orderTabs_: orderTabs_, parseMeals_: parseMeals_, parseSchools_: parseSchools_, polish_: polish_, present: present, pwMailHtml_: pwMailHtml_, pwMailText_: pwMailText_, readmeAgain: readmeAgain, readmeOld_: readmeOld_, readme_: readme_, refreshAll: refreshAll, removeSamples: removeSamples, removeSamples_: removeSamples_, resetAll: resetAll, restyle: restyle, rows_: rows_, safe_: safe_, same_: same_, samples_: samples_, saveGroups: saveGroups, saveLayout: saveLayout, saveLocation: saveLocation, saveSchool: saveSchool, saveSeats: saveSeats, saveSetting: saveSetting, saveTimetable: saveTimetable, schoolUrl_: schoolUrl_, searchSchool: searchSchool, seedDemo_: seedDemo_, sendFeedback: sendFeedback, services_: services_, setSetting_: setSetting_, settings_: settings_, setup: setup, setup_: setup_, shareInfo: shareInfo, sheetTool: sheetTool, sheet_: sheet_, showUrls: showUrls, sortEvents: sortEvents, sortNotes: sortNotes, sortRange_: sortRange_, sortStudents: sortStudents, studentCount_: studentCount_, studentMap_: studentMap_, styleTab_: styleTab_, sync: sync, syncNotes_: syncNotes_, syncTabs_: syncTabs_, tail_: tail_, tally_: tally_, tap: tap, teacher: teacher, text_: text_, thermo: thermo, thermoReset: thermoReset, tidyTable_: tidyTable_, timetable_: timetable_, tint_: tint_, today_: today_, toggleRaw: toggleRaw, toggleTodo: toggleTodo, tpw_: tpw_, undoPresent: undoPresent, updateSummary: updateSummary, weekday_: weekday_, writeTable_: writeTable_ };
 })();
