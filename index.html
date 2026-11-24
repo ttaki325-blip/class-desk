@@ -17,7 +17,7 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="desk.css?v=my34">
+<link rel="stylesheet" href="desk.css?v=my35">
 <script src="https://accounts.google.com/gsi/client" async></script>
 <!--
   우리반 바탕화면 앱판 (kimman.kr/desk) — GAS판 v3.0 화면에 구글 시트 직접 연결을 더한 것 — 화면 · 만든 사람 김맨 (https://kimman.kr) · CC BY-SA 4.0 · 주문대
@@ -522,6 +522,17 @@
   #bigTimer.mid .bs{font-size:16px} #bigTimer.mid .bctl{margin-top:10px; gap:6px} #bigTimer.mid .bctl:has(.chip){display:none}
   #bigTimer.mid .bctl .btn{font-size:16px; padding:9px 16px; border-radius:14px} #bigTimer.mid [data-bstep="-10"], #bigTimer.mid [data-bstep="10"]{display:none}
   .bctl{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:26px}
+  .bmin{margin-top:12px; align-items:center; font-size:20px; font-weight:800; color:var(--sub)} .bmin input{width:96px; font-size:22px; text-align:center; padding:8px}
+  #bigTimer.mid .bmin, #bigTimer.mid #bigWin{display:none}
+  /* 타이머 창 (따로 뜬 창): 창 크기에 맞춰 */
+  html.timewin body > *:not(#bigTimer):not(.toast):not(#toast){display:none!important}
+  html.timewin #bigTimer{display:grid!important; inset:0; position:fixed}
+  html.timewin #bigTimer .bt{font-size:min(30vh,24vw)} html.timewin #bigTimer .bs{font-size:max(14px,min(4vh,3vw))}
+  html.timewin #bigTimer .bctl{margin-top:min(3vh,20px); gap:6px} html.timewin #bigTimer .bctl .chip{font-size:max(13px,min(2.6vh,2vw)); padding:6px 12px}
+  html.timewin #bigTimer .bctl .btn{font-size:max(14px,min(2.8vh,2.2vw)); padding:8px 14px; border-radius:12px}
+  html.timewin #bigTimer .bx{top:10px; right:12px} html.timewin #bigTimer .bx .btn{font-size:13px; padding:5px 10px}
+  html.timewin #bigSize, html.timewin #bigWin{display:none}
+  html.timewin.small #bigTimer .bctl, html.timewin.small #bigTimer .bs{display:none}
   .bctl .chip{font-size:21px; padding:11px 24px; --cc:#7566c0} .bctl .btn{font-size:22px; padding:15px 28px; border-radius:18px}
   .dback{position:fixed; inset:0; z-index:74; background:rgba(24,18,52,.18); opacity:0; visibility:hidden; transition:opacity .3s, visibility 0s linear .3s}
   .dback.on{opacity:1; visibility:visible; transition:opacity .3s}
@@ -949,7 +960,8 @@
 </style>
 </head>
 <body>
-<script>if (/[?&](teacher|tools)\b/.test(location.search)) document.documentElement.classList.add("twin");
+<script>if (/[?&](teacher|tools|timer)\b/.test(location.search)) document.documentElement.classList.add("twin");
+if (/[?&]timer\b/.test(location.search)) document.documentElement.classList.add("timewin");
 if (/[?&]tools\b/.test(location.search)) document.documentElement.classList.add("toolwin");</script>
 <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
 <canvas id="fx" aria-hidden="true"></canvas>
@@ -1014,7 +1026,7 @@ if (/[?&]tools\b/.test(location.search)) document.documentElement.classList.add(
           <span class="sep jua">:</span>
           <div class="unit"><button class="arr" data-step="10" aria-label="10초 늘리기"><span data-i="up"></span></button><input class="num jua" id="tSec" inputmode="numeric" maxlength="2" aria-label="초"><button class="arr" data-step="-10" aria-label="10초 줄이기"><span data-i="down"></span></button></div>
         </div></div>
-      <div class="tm-side"><div class="row presets"><button class="chip" data-pre="60">1분</button><button class="chip" data-pre="180">3분</button><button class="chip" data-pre="300">5분</button><button class="chip" data-pre="600">10분</button></div>
+      <div class="tm-side"><div class="row presets"><button class="chip" data-pre="60">1분</button><button class="chip" data-pre="180">3분</button><button class="chip" data-pre="300">5분</button><button class="chip" data-pre="600">10분</button><button class="chip" data-pre="1800">30분</button></div>
         <div class="tstate" id="tState">화살표로 분 · 초를 맞추고 시작</div>
         <div class="row"><button class="btn" id="tGo">시작</button><button class="btn ghost" id="tReset">처음으로</button><button class="btn ghost" id="tBig"><span data-i="expand"></span>크게</button></div></div>
     </div><div class="tools"></div></section>
@@ -1129,9 +1141,10 @@ if (/[?&]tools\b/.test(location.search)) document.documentElement.classList.add(
     <div class="bcd"><span class="ap" id="bAp"></span><div class="bct jua num"><span id="bH">--</span><span class="colon">:</span><span id="bM">--</span></div><div class="bcdate" id="bDate"></div><div class="bcnow" id="bNow" hidden><i></i><span></span></div></div></div></div>
 <div class="ntpv" id="ntPicView" role="dialog" aria-label="사진 크게 보기"><img alt="알림장 사진"></div>
 <div class="qrbig" id="qrBig" role="dialog" aria-label="QR 크게 보기"><button class="btn ghost" id="qrClose">닫기</button><div class="qrb-box" id="qrBigBox"></div></div>
-<div class="big" id="bigTimer"><div class="bx bxs"><button class="btn ghost" id="bigAuto">쉬는 시간 자동 켜짐</button><button class="btn ghost" id="bigSize">중간 크기로</button><button class="btn ghost" id="bigClose">닫기</button></div><div class="bt-in"><div class="bt jua num" id="bigT">05:00</div><div class="bbar"><i id="bigBar"></i></div><div class="bs" id="bigS"></div>
-  <div class="bctl"><button class="chip" data-pre="60">1분</button><button class="chip" data-pre="180">3분</button><button class="chip" data-pre="300">5분</button><button class="chip" data-pre="600">10분</button><button class="chip" data-pre="900">15분</button></div>
-  <div class="bctl"><button class="btn ghost" data-bstep="-60">−1분</button><button class="btn ghost" data-bstep="60">+1분</button><button class="btn ghost" data-bstep="-10">−10초</button><button class="btn ghost" data-bstep="10">+10초</button>
+<div class="big" id="bigTimer"><div class="bx bxs"><button class="btn ghost" id="bigAuto">쉬는 시간 자동 켜짐</button><button class="btn ghost" id="bigSize">중간 크기로</button><button class="btn ghost" id="bigWin" title="따로 뜨는 창으로 열어서 다른 모니터로 끌어 옮길 수 있어요">⧉ 따로 창으로</button><button class="btn ghost" id="bigClose">닫기</button></div><div class="bt-in"><div class="bt jua num" id="bigT">05:00</div><div class="bbar"><i id="bigBar"></i></div><div class="bs" id="bigS"></div>
+  <div class="bctl"><button class="chip" data-pre="60">1분</button><button class="chip" data-pre="180">3분</button><button class="chip" data-pre="300">5분</button><button class="chip" data-pre="600">10분</button><button class="chip" data-pre="900">15분</button><button class="chip" data-pre="1200">20분</button><button class="chip" data-pre="1800">30분</button><button class="chip" data-pre="2400">40분</button></div>
+  <div class="bctl bmin"><span>직접</span><input class="field num" id="bMinIn" type="number" min="1" max="180" placeholder="25" inputmode="numeric"><span>분</span><button class="btn ghost" id="bMinGo">맞추기</button></div>
+  <div class="bctl"><button class="btn ghost" data-bstep="-300">−5분</button><button class="btn ghost" data-bstep="-60">−1분</button><button class="btn ghost" data-bstep="60">+1분</button><button class="btn ghost" data-bstep="300">+5분</button><button class="btn ghost" data-bstep="-10">−10초</button><button class="btn ghost" data-bstep="10">+10초</button>
     <button class="btn jua" id="bGo" style="min-width:130px">시작</button><button class="btn ghost" id="bReset">처음으로</button><button class="btn ghost" id="bSnd"></button></div></div></div>
 <div class="vwarn" id="vWarn"><b class="jua">쉿! 목소리가 커요</b></div>
 <div class="party" id="party"><b class="jua" id="partyTxt"></b></div>
@@ -1152,11 +1165,11 @@ if (/[?&]tools\b/.test(location.search)) document.documentElement.classList.add(
 
 <div class="desk-start" id="deskStart" role="dialog" aria-modal="true" aria-label="우리반 바탕화면 시작" hidden></div>
 <div class="desk-link" id="deskLink" role="status" aria-live="polite" hidden></div>
-<script src="config.js?v=my34"></script>
-<script src="gs.js?v=my34"></script>
-<script src="core.js?v=my34"></script>
-<script src="bridge.js?v=my34"></script>
+<script src="config.js?v=my35"></script>
+<script src="gs.js?v=my35"></script>
+<script src="core.js?v=my35"></script>
+<script src="bridge.js?v=my35"></script>
 <script src="qrcode.js?v=1"></script>
-<script src="app.js?v=my34"></script>
+<script src="app.js?v=my35"></script>
 </body>
 </html>

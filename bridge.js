@@ -19,7 +19,7 @@
   var wait = function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); };
 
   // ── 선생님 창(팝업): 시트 연결은 바탕화면 창의 것을 빌려 쓴다 (기록이 한곳에만 있게) ──
-  if (/[?&](teacher|tools)\b/.test(location.search)) { teacherWindow(); return; }
+  if (/[?&](teacher|tools|timer)\b/.test(location.search)) { teacherWindow(); return; }
   function teacherWindow() {
     var O = null; try { O = G.opener && G.opener.DESK && G.opener.DESKAPP ? G.opener : null; } catch (e) { O = null; }
     var READ = { nameList: 1, noticeList: 1, getAll: 1, sync: 1, teacher: 1, attendGet: 1, monthData: 1, getAccount: 1, checkTeacher: 1, getWeather: 1, shareInfo: 1, getMeal: 1, searchSchool: 1, lessonWeek: 1, lessonFind: 1 };
@@ -116,7 +116,7 @@
   var RFT = null;
   function refreshLater() {
     clearTimeout(RFT); if (MODE !== 'google' || !TOK.exp) return;
-    RFT = setTimeout(function () { if (MODE === 'google' && !ASK && !/[?&](teacher|tools)\b/.test(location.search)) askToken('').catch(function () {}); }, Math.max(60000, TOK.exp - Date.now() - 5 * 60000));
+    RFT = setTimeout(function () { if (MODE === 'google' && !ASK && !/[?&](teacher|tools|timer)\b/.test(location.search)) askToken('').catch(function () {}); }, Math.max(60000, TOK.exp - Date.now() - 5 * 60000));
   }
   if (TOK.t) setTimeout(refreshLater, 3000);
   // 토큰이 곧 끝나면, 누군가 화면을 누르는 순간(팝업이 허락되는 때)에 미리 새로 받는다

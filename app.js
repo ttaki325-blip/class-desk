@@ -7,7 +7,7 @@
   CODE = ls("classdesk-code") || "";
   try { TPW = sessionStorage.getItem("classdesk-tpw") || ""; } catch (e) {}
   // 선생님 서랍 창(팝업)인지: 바탕화면에서 [선생님]을 누르면 따로 열린다. 아이들이 보는 칠판에는 서랍이 뜨지 않는다
-  var TWIN = /[?&](teacher|tools)\b/.test(location.search), TOOLWIN = /[?&]tools\b/.test(location.search), TW = null, TB = null, TOP = window.TEACHER_OPENER || null;
+  var TWIN = /[?&](teacher|tools|timer)\b/.test(location.search), TOOLWIN = /[?&]tools\b/.test(location.search), TIMEWIN = /[?&]timer\b/.test(location.search), TMW = null, TW = null, TB = null, TOP = window.TEACHER_OPENER || null;
   if (TWIN && TOP) { try { TPW = TOP.TPW || TPW; CODE = TOP.CODE || CODE; } catch (e) {} }
 
   // ── 선 아이콘 (이모지 대신) ──
@@ -694,7 +694,7 @@
   function drawSound() { $("bSnd").innerHTML = ico(chimeOn() ? "sound" : "mute") + (chimeOn() ? " 소리 켬" : " 소리 끔"); $("sndBtn").innerHTML = ico(chimeOn() ? "sound" : "mute") + (chimeOn() ? " 소리 켬" : " 소리 끔"); $("sndBtn").classList.toggle("on", chimeOn()); $("sndBtn").style.setProperty("--cc", "#7566c0"); }
   $("sndBtn").onclick = function () { SND = chimeOn() ? "0" : "1"; ls("classdesk-sound", SND); drawSound(); };
   function tmSave() { if (!TWIN) ls("classdesk-timer", JSON.stringify(TM)); }
-  function tmSet(sec) { if (TM.run) return; TM.total = TM.left = Math.max(5, Math.min(180 * 60, Math.round(sec))); tmDraw(); tmSave(); }
+  function tmSet(sec) { if (TIMEWIN) { try { TOP.DESKTM.set(sec); } catch (e) {} tmPull(); return; } if (TM.run) return; TM.total = TM.left = Math.max(5, Math.min(180 * 60, Math.round(sec))); tmDraw(); tmSave(); }
   function tmDraw() {
     if (document.activeElement !== $("tMin")) $("tMin").value = pad(Math.floor(TM.left / 60));
     if (document.activeElement !== $("tSec")) $("tSec").value = pad(TM.left % 60);
@@ -708,8 +708,19 @@
     $("bigS").textContent = TM.run ? (TM.auto && TM.lab ? TM.lab + " · " : "") + hm(new Date(TM.end)) + "에 끝나요" : TM.left < TM.total ? "잠깐 멈춤" : "멈춰 있어요";
     $("bGo").textContent = $("tGo").textContent; document.querySelectorAll("[data-bstep]").forEach(function (b) { b.disabled = TM.run; b.style.opacity = TM.run ? .45 : ""; });
   }
+  // 따로 뜬 타이머 창: 바탕화면 창의 타이머를 그대로 보여 주고, 누르면 바탕화면 창에 시킨다 (소리도 바탕화면에서)
+  function tmPull() { if (!TIMEWIN) return; try { var o = TOP.DESKTM.get(); TM = o; SND = ls("classdesk-sound"); } catch (e) {} tmDraw(); drawSound(); brkLabel(); }
+  if (!TIMEWIN) window.DESKTM = { get: function () { return JSON.parse(JSON.stringify(TM)); }, set: function (s) { tmSet(s); }, go: function () { $("tGo").click(); }, reset: function () { $("tReset").click(); },
+    snd: function () { $("sndBtn").click(); }, auto: function () { $("bigAuto").click(); }, win: function () { return TMW && !TMW.closed; } };
+  if (TIMEWIN) {
+    document.title = "타이머";
+    setInterval(tmPull, 250);
+    setInterval(function () { try { if (!TOP || TOP.closed) window.close(); } catch (e) { window.close(); } }, 3000);
+    var fitW = function () { document.documentElement.classList.toggle("small", innerHeight < 330); }; fitW(); addEventListener("resize", fitW);
+    addEventListener("pagehide", function () { ls("classdesk-tmwin", JSON.stringify([screenX, screenY, outerWidth, outerHeight])); });
+  }
   setInterval(function () {
-    if (!TM.run) return; TM.left = Math.max(0, Math.ceil((TM.end - Date.now()) / 1000)); tmDraw();
+    if (!TM.run || TIMEWIN) return; TM.left = Math.max(0, Math.ceil((TM.end - Date.now()) / 1000)); tmDraw();
     if (TM.total > 75 && TM.left <= 60 && TM.left > 50 && !TM.warned) { TM.warned = true; tmSave(); toast("1분 남았어요"); }   // 1분 전은 소리 없이 글자만
     if (TM.left <= 0) tmDone();
   }, 250);
@@ -725,7 +736,8 @@
     var b = $("bigTimer"); b.classList.toggle("mid", !!mid); $("bigSize").textContent = mid ? "크게" : "중간 크기로"; ls("classdesk-tmsize", mid ? "mid" : "full");
     var pos = ls("classdesk-tmpos"); if (mid && pos) { try { var p = JSON.parse(pos); b.style.setProperty("--ml", Math.max(0, Math.min(innerWidth - 200, p[0])) + "px"); b.style.setProperty("--mt", Math.max(0, Math.min(innerHeight - 120, p[1])) + "px"); } catch (e) {} }
   }
-  $("tBig").onclick = function () { tmSize(ls("classdesk-tmsize") === "mid"); $("bigTimer").classList.add("on"); tmDraw(); };
+  function tmShow(mid) { if (TMW && !TMW.closed) { try { TMW.focus(); } catch (e) {} return; } tmSize(mid); $("bigTimer").classList.add("on"); }
+  $("tBig").onclick = function () { if (TMW && !TMW.closed) { try { TMW.focus(); } catch (e) {} return; } tmSize(ls("classdesk-tmsize") === "mid"); $("bigTimer").classList.add("on"); tmDraw(); };
   $("bigSize").onclick = function () { tmSize(!$("bigTimer").classList.contains("mid")); };
   function brkLabel() {
     var on = ls("classdesk-breaktimer") !== "off";
@@ -733,7 +745,7 @@
     $("brkBtn").textContent = on ? "쉬는 시간 자동" : "자동 꺼짐"; $("brkBtn").classList.toggle("on", on); $("brkBtn").classList.toggle("off", !on);
   }
   $("brkBtn").onclick = function (e) { e.stopPropagation(); $("bigAuto").click(); };
-  $("bigAuto").onclick = function () { ls("classdesk-breaktimer", ls("classdesk-breaktimer") === "off" ? null : "off"); brkLabel(); toast(ls("classdesk-breaktimer") === "off" ? "쉬는 시간 자동 타이머를 껐어요" : "교시가 끝나면 타이머가 저절로 떠요"); };
+  $("bigAuto").onclick = function () { if (TIMEWIN) { try { TOP.DESKTM.auto(); } catch (e) {} tmPull(); return; } ls("classdesk-breaktimer", ls("classdesk-breaktimer") === "off" ? null : "off"); brkLabel(); toast(ls("classdesk-breaktimer") === "off" ? "쉬는 시간 자동 타이머를 껐어요" : "교시가 끝나면 타이머가 저절로 떠요"); };
   brkLabel();
   (function () {
     var b = $("bigTimer"), st = null;
@@ -749,11 +761,25 @@
     var end = function () { if (!st) return; st = null; b.classList.remove("drag"); var r = b.getBoundingClientRect(); ls("classdesk-tmpos", JSON.stringify([Math.round(r.left), Math.round(r.top)])); };
     b.addEventListener("pointerup", end); b.addEventListener("pointercancel", end);
   })();
-  $("bGo").onclick = function () { $("tGo").click(); };
-  $("bReset").onclick = function () { $("tReset").click(); };
-  $("bSnd").onclick = function () { $("sndBtn").click(); };
+  $("bGo").onclick = function () { if (TIMEWIN) { try { TOP.DESKTM.go(); } catch (e) {} tmPull(); return; } $("tGo").click(); };
+  $("bReset").onclick = function () { if (TIMEWIN) { try { TOP.DESKTM.reset(); } catch (e) {} tmPull(); return; } $("tReset").click(); };
+  $("bSnd").onclick = function () { if (TIMEWIN) { try { TOP.DESKTM.snd(); } catch (e) {} tmPull(); return; } $("sndBtn").click(); };
+  // 분을 바로 적어서 맞추기
+  $("bMinGo").onclick = function () { var n = Number($("bMinIn").value); if (!(n > 0)) { $("bMinIn").focus(); return; } if (TM.run) { toast("타이머를 멈춘 뒤에 맞춰 주세요"); return; } tmSet(Math.min(180, n) * 60); $("bMinIn").value = ""; };
+  $("bMinIn").addEventListener("keydown", function (e) { if (e.key === "Enter") $("bMinGo").click(); });
+  // 따로 뜨는 타이머 창 (창을 끌어 다른 모니터로 옮길 수 있음. 지난번 자리에 다시 뜸)
+  function openTMW() {
+    if (TMW && !TMW.closed) { try { TMW.focus(); } catch (e) {} return; }
+    var w = 560, h = 440, x = screenX + Math.max(0, outerWidth - w - 40), y = screenY + 60;
+    try { var p = JSON.parse(ls("classdesk-tmwin") || "null"); if (p) { x = p[0]; y = p[1]; w = Math.max(320, p[2]); h = Math.max(240, p[3]); } } catch (e) {}
+    TMW = window.open(location.pathname + "?timer=1", "deskTimer", "popup=yes,width=" + w + ",height=" + h + ",left=" + x + ",top=" + y);
+    if (!TMW) { toast("새 창이 막혔어요. 이 사이트의 팝업을 '항상 허용'으로 바꿔 주세요"); return; }
+    $("bigTimer").classList.remove("on");
+  }
+  $("bigWin").onclick = openTMW;
+  addEventListener("pagehide", function () { if (TMW && !TMW.closed) { try { TMW.close(); } catch (e) {} } });
   document.addEventListener("click", function (e) { var b = e.target.closest("[data-bstep]"); if (b && !TM.run) tmSet(TM.total + Number(b.dataset.bstep)); });
-  $("bigClose").onclick = function () { $("bigTimer").classList.remove("on"); };
+  $("bigClose").onclick = function () { if (TIMEWIN) { window.close(); return; } $("bigTimer").classList.remove("on"); };
   function tmDone() {
     TM.run = false; TM.left = TM.total; TM.warned = false; tmSave(); tmDraw();
     if (chimeOn()) { var al = [1047, 1319, 1568, 2093]; chime(al, true); setTimeout(function () { chime(al, true); }, 1300); setTimeout(function () { chime(al, true); }, 2600); }
@@ -1519,7 +1545,7 @@
         var ll = L.b * 60 - s; if (ll < 30) return;
         BRK.done = lk; ls("classdesk-brk", lk);
         tmSet(ll); TM.warned = false; TM.auto = true; TM.lab = "점심시간"; TM.end = Date.now() + TM.left * 1000; TM.run = true; tmSave(); tmDraw();
-        tmSize(true); $("bigTimer").classList.add("on"); if (chimeOn()) chime([659, 988]);
+        tmShow(true); if (chimeOn()) chime([659, 988]);
       }
       return;
     }
@@ -1532,7 +1558,7 @@
         var left = a2 * 60 - s; if (left < 30) return;
         BRK.done = key; ls("classdesk-brk", key);
         tmSet(left); TM.warned = false; TM.auto = true; TM.end = Date.now() + TM.left * 1000; TM.run = true; tmSave(); tmDraw();
-        tmSize(true); $("bigTimer").classList.add("on");
+        tmShow(true);
         TM.lab = "쉬는 시간 · " + P[i + 1].n + "교시 " + (P[i + 1].subj || "") + " 시작까지"; tmSave(); tmDraw();
         if (chimeOn()) chime([659, 988]);
         return;
@@ -1544,6 +1570,7 @@
 
   function twinStart() {
     document.body.classList.add("twin");
+    if (TIMEWIN) { tmPull(); return; }
     if (TOOLWIN) { document.title = "놀이 · 도구함 · " + ((D && D.settings["학급 닉네임"]) || "우리반 바탕화면"); var tm = /[?&]tool=([^&]+)/.exec(location.search); openTools(tm ? decodeURIComponent(tm[1]) : ""); return; }
     document.title = "선생님 서랍 · " + ((D && D.settings["학급 닉네임"]) || "우리반 바탕화면");
     var m = /[?&]tab=([^&]+)/.exec(location.search), tab = m ? decodeURIComponent(m[1]) : "today";
